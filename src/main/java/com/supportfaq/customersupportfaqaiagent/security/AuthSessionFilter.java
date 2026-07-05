@@ -21,12 +21,14 @@ public class AuthSessionFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
 
     private final Set<String> publicStaticFiles = Set.of(
+            "/",
             "/login.html",
             "/auth.css",
             "/auth.js",
             "/style.css",
             "/script.js",
-            "/favicon.ico"
+            "/favicon.ico",
+            "/rushd-ai-logo-login-glow.png"
     );
 
     public AuthSessionFilter(ObjectMapper objectMapper) {
@@ -34,11 +36,20 @@ public class AuthSessionFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
         String path = request.getRequestURI();
 
-        if (isPublicPath(path) || "OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (isPublicPath(path)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -49,16 +60,19 @@ public class AuthSessionFilter extends OncePerRequestFilter {
         }
 
         boolean adminEndpoint = requiresAdmin(path, request.getMethod());
+
         if (!AuthService.isAuthenticated(request)) {
             if (adminEndpoint && hasAdminApiKey(request)) {
                 filterChain.doFilter(request, response);
                 return;
             }
+
             if (path.startsWith("/api/")) {
                 writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, "Please log in first.");
             } else {
                 response.sendRedirect("/login.html");
             }
+
             return;
         }
 
@@ -73,6 +87,14 @@ public class AuthSessionFilter extends OncePerRequestFilter {
     private boolean isPublicPath(String path) {
         return path.startsWith("/api/auth/")
                 || publicStaticFiles.contains(path)
+                || path.endsWith(".png")
+                || path.endsWith(".jpg")
+                || path.endsWith(".jpeg")
+                || path.endsWith(".webp")
+                || path.endsWith(".svg")
+                || path.endsWith(".ico")
+                || path.endsWith(".css")
+                || path.endsWith(".js")
                 || path.startsWith("/private/")
                 || path.startsWith("/internal/")
                 || path.startsWith("/config/")
@@ -82,8 +104,7 @@ public class AuthSessionFilter extends OncePerRequestFilter {
     }
 
     private boolean requiresAuthentication(String path) {
-        return path.equals("/")
-                || path.equals("/index.html")
+        return path.equals("/index.html")
                 || path.startsWith("/api/")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/api-docs");
@@ -93,31 +114,40 @@ public class AuthSessionFilter extends OncePerRequestFilter {
         if (path.startsWith("/swagger-ui") || path.startsWith("/api-docs")) {
             return true;
         }
+
         if (path.startsWith("/api/security")
                 || path.startsWith("/api/dashboard")
                 || path.startsWith("/api/unanswered")) {
             return true;
         }
+
         if (path.equals("/api/chat/history")) {
             return true;
         }
+
         if (path.startsWith("/api/feedback") && !"POST".equalsIgnoreCase(method)) {
             return true;
         }
+
         if (path.startsWith("/api/tickets") && !"POST".equalsIgnoreCase(method)) {
             return true;
         }
+
         if (path.startsWith("/api/categories") && !"GET".equalsIgnoreCase(method)) {
             return true;
         }
+
         if (path.startsWith("/api/faqs/generated")
                 || path.startsWith("/api/faqs/pending-review")
                 || path.matches("^/api/faqs/\\d+/(approve|reject)$")) {
             return true;
         }
-        return path.equals("/api/faqs")
-                ? !"GET".equalsIgnoreCase(method)
-                : path.matches("^/api/faqs/\\d+$") && !"GET".equalsIgnoreCase(method);
+
+        if (path.equals("/api/faqs")) {
+            return !"GET".equalsIgnoreCase(method);
+        }
+
+        return path.matches("^/api/faqs/\\d+$") && !"GET".equalsIgnoreCase(method);
     }
 
     private boolean hasAdminApiKey(HttpServletRequest request) {

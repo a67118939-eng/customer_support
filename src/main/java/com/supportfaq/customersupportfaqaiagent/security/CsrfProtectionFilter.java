@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Set;
 
 @Component
@@ -22,7 +22,12 @@ import java.util.Set;
 public class CsrfProtectionFilter extends OncePerRequestFilter {
 
     private static final String CSRF_HEADER = "X-CSRF-Token";
-    private static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS");
+
+    private static final Set<String> SAFE_METHODS = Set.of(
+            "GET",
+            "HEAD",
+            "OPTIONS"
+    );
 
     private final ObjectMapper objectMapper;
 
@@ -31,8 +36,12 @@ public class CsrfProtectionFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
         if (!requiresCsrf(request)) {
             filterChain.doFilter(request, response);
             return;
@@ -41,6 +50,7 @@ public class CsrfProtectionFilter extends OncePerRequestFilter {
         HttpSession session = request.getSession(false);
         Object expected = session == null ? null : session.getAttribute(AuthService.SESSION_CSRF);
         String supplied = request.getHeader(CSRF_HEADER);
+
         if (!matches(expected, supplied)) {
             writeJson(response, HttpServletResponse.SC_FORBIDDEN, "Security token is missing or invalid.");
             return;
@@ -52,13 +62,26 @@ public class CsrfProtectionFilter extends OncePerRequestFilter {
     private boolean requiresCsrf(HttpServletRequest request) {
         String method = request.getMethod().toUpperCase();
         String path = request.getRequestURI();
-        if (!path.startsWith("/api/") || SAFE_METHODS.contains(method)) {
+
+        if (!path.startsWith("/api/")) {
             return false;
         }
+
+        if (SAFE_METHODS.contains(method)) {
+            return false;
+        }
+
         if (hasAdminApiKey(request)) {
             return false;
         }
-        return !path.equals("/api/auth/login") && !path.equals("/api/auth/register");
+
+        return !isPublicAuthEndpoint(path);
+    }
+
+    private boolean isPublicAuthEndpoint(String path) {
+        return path.equals("/api/auth/login")
+                || path.equals("/api/auth/register")
+                || path.equals("/api/auth/me");
     }
 
     private boolean hasAdminApiKey(HttpServletRequest request) {
@@ -70,8 +93,10 @@ public class CsrfProtectionFilter extends OncePerRequestFilter {
         if (expected == null || supplied == null || supplied.isBlank()) {
             return false;
         }
+
         byte[] expectedBytes = expected.toString().getBytes(StandardCharsets.UTF_8);
         byte[] suppliedBytes = supplied.getBytes(StandardCharsets.UTF_8);
+
         return MessageDigest.isEqual(expectedBytes, suppliedBytes);
     }
 

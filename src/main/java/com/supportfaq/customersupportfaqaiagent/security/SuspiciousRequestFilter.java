@@ -27,36 +27,80 @@ public class SuspiciousRequestFilter extends OncePerRequestFilter {
 
     private final List<Pattern> suspiciousPatterns = List.of(
             Pattern.compile("(\\.\\./|\\.\\.\\\\|%2e%2e|%252e%252e)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(<script|javascript:|onerror\\s*=|onload\\s*=)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(\\bunion\\b\\s+\\bselect\\b|\\bdrop\\b\\s+\\btable\\b|\\binformation_schema\\b)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(\\$\\{|\\{\\{|<\\?php|/etc/passwd|cmd\\.exe|powershell)", Pattern.CASE_INSENSITIVE)
+            Pattern.compile("(<script|</script|javascript:|onerror=|onload=)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(union\\s+select|drop\\s+table|delete\\s+from|insert\\s+into)", Pattern.CASE_INSENSITIVE)
     );
 
-    public SuspiciousRequestFilter(AuditLogService auditLogService, ObjectMapper objectMapper) {
+    public SuspiciousRequestFilter(
+            AuditLogService auditLogService,
+            ObjectMapper objectMapper
+    ) {
         this.auditLogService = auditLogService;
         this.objectMapper = objectMapper;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
-        String target = normalize(request.getRequestURI() + "?" + (request.getQueryString() == null ? "" : request.getQueryString()));
-        if (isSuspicious(target)) {
-            auditLogService.log("SUSPICIOUS_REQUEST_BLOCKED", "HIGH",
-                    "Blocked suspicious request for " + request.getMethod() + " " + request.getRequestURI(),
-                    request);
-            writeJson(response, HttpServletResponse.SC_BAD_REQUEST, "Suspicious request blocked.");
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        String path = request.getRequestURI();
+
+        if (isSafePublicPath(path)) {
+            filterChain.doFilter(request, response);
             return;
         }
+
+        String query = request.getQueryString();
+        String target = path + " " + (query == null ? "" : query);
+
+        if (isSuspicious(target)) {
+            auditLogService.log(
+                    "SUSPICIOUS_REQUEST_BLOCKED",
+                    "HIGH",
+                    "Suspicious request blocked: " + request.getMethod() + " " + path,
+                    request
+            );
+
+            writeJson(response, HttpServletResponse.SC_FORBIDDEN, "Suspicious request blocked.");
+            return;
+        }
+
         filterChain.doFilter(request, response);
     }
 
-    private boolean isSuspicious(String target) {
-        return suspiciousPatterns.stream().anyMatch(pattern -> pattern.matcher(target).find());
+    private boolean isSafePublicPath(String path) {
+        return path.startsWith("/api/auth/")
+                || path.equals("/")
+                || path.equals("/login.html")
+                || path.equals("/auth.css")
+                || path.equals("/auth.js")
+                || path.equals("/style.css")
+                || path.equals("/script.js")
+                || path.equals("/favicon.ico")
+                || path.endsWith(".png")
+                || path.endsWith(".jpg")
+                || path.endsWith(".jpeg")
+                || path.endsWith(".webp")
+                || path.endsWith(".svg")
+                || path.endsWith(".ico")
+                || path.endsWith(".css")
+                || path.endsWith(".js");
+    }
+
+    private boolean isSuspicious(String value) {
+        String normalized = normalize(value);
+
+        return suspiciousPatterns
+                .stream()
+                .anyMatch(pattern -> pattern.matcher(normalized).find());
     }
 
     private String normalize(String value) {
-        String decoded = value;
+        String decoded = value == null ? "" : value;
+
         for (int i = 0; i < 2; i++) {
             try {
                 decoded = URLDecoder.decode(decoded, StandardCharsets.UTF_8);
@@ -64,6 +108,7 @@ public class SuspiciousRequestFilter extends OncePerRequestFilter {
                 break;
             }
         }
+
         return decoded.toLowerCase(Locale.ROOT);
     }
 
