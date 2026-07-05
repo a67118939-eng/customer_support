@@ -7,6 +7,7 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
@@ -50,10 +51,14 @@ public class CorsConfig implements WebMvcConfigurer {
     }
 
     private String[] cleanPatterns() {
-        String[] cleaned = allowedOriginPatterns == null ? new String[0] : Arrays.stream(allowedOriginPatterns)
+        LinkedHashSet<String> patterns = new LinkedHashSet<>(Arrays.asList(DEFAULT_ALLOWED_ORIGIN_PATTERNS));
+        if (allowedOriginPatterns == null) {
+            return patterns.toArray(String[]::new);
+        }
+        Arrays.stream(allowedOriginPatterns)
                 .map(pattern -> pattern == null ? "" : pattern.trim())
                 .filter(pattern -> !pattern.isBlank())
-                .toArray(String[]::new);
-        return cleaned.length == 0 ? DEFAULT_ALLOWED_ORIGIN_PATTERNS : cleaned;
+                .forEach(patterns::add);
+        return patterns.toArray(String[]::new);
     }
 }

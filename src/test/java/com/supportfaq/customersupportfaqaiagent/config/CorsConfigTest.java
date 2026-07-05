@@ -52,6 +52,20 @@ class CorsConfigTest {
     }
 
     @Test
+    void apiCorsKeepsRailwayOriginWhenEnvOverridesOnlyListLocalhost() throws ServletException, IOException {
+        CorsConfiguration configuration = configurationWithPatterns("http://localhost:8081");
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+        request.addHeader(HttpHeaders.ORIGIN, "https://customersupport-production-4e02.up.railway.app");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        boolean allowed = new DefaultCorsProcessor().processRequest(configuration, request, response);
+
+        assertTrue(allowed);
+        assertEquals("https://customersupport-production-4e02.up.railway.app",
+                response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+    }
+
+    @Test
     void apiCorsRejectsUnlistedOrigins() throws ServletException, IOException {
         CorsConfiguration configuration = configurationWithPatterns("https://customersupport-production-4e02.up.railway.app");
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/register");
