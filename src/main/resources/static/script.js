@@ -158,7 +158,7 @@ const translations = {
         unansweredSubtitle: "Review questions that the AI could not answer and convert them into FAQs or escalate them to support.",
         noUnanswered: "No unanswered questions yet.",
         unansweredHint: "When the AI cannot answer a customer question, it will appear here.",
-        unansweredError: "Unable to load unanswered questions. Please make sure the backend is running.",
+        unansweredError: "this is admin page only",
         markReviewed: "Mark Reviewed",
         resolve: "Resolve",
         convertToFaq: "Convert to FAQ",
@@ -184,7 +184,7 @@ const translations = {
         realAiDescription: "Answers general questions like a chat assistant. API keys stay on the server.",
         noFaqs: "No FAQs yet. Add the first FAQ to start training the FAQ Database Agent.",
         faqError: "Unable to load FAQs. Please make sure the backend is running.",
-        dashboardStatsUnavailable: "Dashboard stats API is not available yet.",
+        dashboardStatsUnavailable: "this is admin page only",
         answered: "Answered",
         unanswered: "Unanswered",
         mode: "Mode",
@@ -287,7 +287,7 @@ const translations = {
         unansweredSubtitle: "راجع الأسئلة التي لم يتمكن الذكاء الاصطناعي من إجابتها وحولها إلى أسئلة شائعة أو تذاكر دعم.",
         noUnanswered: "لا توجد أسئلة غير مجابة حتى الآن.",
         unansweredHint: "عندما لا يستطيع الذكاء الاصطناعي إجابة سؤال العميل، سيظهر هنا.",
-        unansweredError: "تعذر تحميل الأسئلة غير المجابة. يرجى التأكد من تشغيل الخادم.",
+        unansweredError: "this is admin page only",
         markReviewed: "تحديد كمراجع",
         resolve: "حل",
         convertToFaq: "تحويل إلى سؤال شائع",
@@ -313,7 +313,7 @@ const translations = {
         realAiDescription: "يستخدم خدمة الذكاء الاصطناعي في الخلفية مع سياق الأسئلة الشائعة. تبقى مفاتيح API على الخادم.",
         noFaqs: "لا توجد أسئلة شائعة حتى الآن. أضف أول سؤال لبدء تدريب وكيل قاعدة الأسئلة.",
         faqError: "تعذر تحميل الأسئلة الشائعة. يرجى التأكد من تشغيل الخادم.",
-        dashboardStatsUnavailable: "واجهة إحصاءات لوحة التحكم غير متاحة بعد.",
+        dashboardStatsUnavailable: "this is admin page only",
         answered: "مجاب",
         unanswered: "غير مجاب",
         mode: "الوضع",
@@ -1510,8 +1510,9 @@ async function loadAiLearningCenter() {
         renderGeneratedFaqs("generatedFaqList", state.generatedFaqs, false);
     } catch (error) {
         console.error(error);
-        renderError("pendingGeneratedFaqList", adminOnlyMessage(error, "faqError"));
-        renderError("generatedFaqList", adminOnlyMessage(error, "faqError"));
+        const message = isForbidden(error) || !isAdmin() ? t("adminOnlyPage") : t("faqError");
+        renderError("pendingGeneratedFaqList", message);
+        renderError("generatedFaqList", message);
     }
 }
 
@@ -2259,11 +2260,17 @@ function renderLoading(containerId) {
 }
 
 function renderEmpty(containerId, title, message = "") {
+    const finalTitle = !isAdmin() && ADMIN_ONLY_CONTAINERS.has(containerId)
+        ? t("adminOnlyPage")
+        : title;
+    const finalMessage = !isAdmin() && ADMIN_ONLY_CONTAINERS.has(containerId)
+        ? ""
+        : message;
     byId(containerId).innerHTML = `
         <div class="empty-state">
             <div>
-                <h3>${escapeHtml(title)}</h3>
-                ${message ? `<p>${escapeHtml(message)}</p>` : ""}
+                <h3>${escapeHtml(finalTitle)}</h3>
+                ${finalMessage ? `<p>${escapeHtml(finalMessage)}</p>` : ""}
             </div>
         </div>
     `;
