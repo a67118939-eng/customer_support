@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rush AI Support</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="lightfall-bg" aria-hidden="true">
+    <span class="light-streak streak-one"></span>
+    <span class="light-streak streak-two"></span>
+    <span class="light-streak streak-three"></span>
+    <span class="light-streak streak-four"></span>
+    <span class="light-streak streak-five"></span>
+    <span class="light-streak streak-six"></span>
+</div>
+<div id="rushPageScene" class="rush-page-bg" aria-hidden="true">
+    <span class="rush-page-orb orb-one"></span>
+    <span class="rush-page-orb orb-two"></span>
+    <div class="rush-page-logo-stage" data-rush-depth="18">
+        <img class="rush-page-logo rush-page-logo-shadow" src="rush-ai-support-logo.png" alt="">
+        <img class="rush-page-logo rush-page-logo-base" src="rush-ai-support-logo.png" alt="">
+        <img class="rush-page-logo rush-page-logo-glow" src="rush-ai-support-logo.png" alt="">
+    </div>
+</div>
+<canvas id="clickSparkCanvas" class="click-spark-canvas" aria-hidden="true"></canvas>
+<button id="menuToggle" class="ripple-menu-button" type="button" aria-controls="sidebarNav" aria-expanded="false">
+    <span class="ripple-menu-text">Menu</span>
+    <span class="ripple-menu-icon" aria-hidden="true">
+        <span></span>
+        <span></span>
+    </span>
+</button>
+<div id="menuBackdrop" class="menu-backdrop" aria-hidden="true"></div>
+<div class="app-layout">
+    <aside id="appSidebar" class="sidebar" aria-hidden="true">
+        <div class="brand">
+            <span class="brand-mark rush-brand-mark"><img src="rush-ai-support-logo.png" alt=""></span>
+            <div>
+                <strong>Rush AI Support</strong>
+                <small>Support Operations</small>
+            </div>
+        </div>
+        <nav id="sidebarNav" class="nav-list glow-sidebar-menu" aria-label="Main navigation">
+            <button class="nav-item border-glow-card active" type="button" data-section="customer-chat" data-index="01"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">01</span><span class="sm-panel-itemLabel" data-i18n="customerChat">Customer Chat</span></span></button>
+            <button class="nav-item border-glow-card" type="button" data-section="faq-agent" data-index="02"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">02</span><span class="sm-panel-itemLabel" data-i18n="faqDatabaseAgent">FAQ Database Agent</span></span></button>
+            <button class="nav-item border-glow-card" type="button" data-section="real-ai" data-index="03"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">03</span><span class="sm-panel-itemLabel" data-i18n="realAiAgent">Real AI Agent</span></span></button>
+            <button class="nav-item border-glow-card" type="button" data-section="faq-management" data-index="04"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">04</span><span class="sm-panel-itemLabel" data-i18n="faqManagement">FAQ Management</span></span></button>
+            <button class="nav-item border-glow-card" type="button" data-section="ai-learning" data-index="05"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">05</span><span class="sm-panel-itemLabel" data-i18n="aiLearningCenter">AI Learning Center</span></span></button>
+            <button class="nav-item border-glow-card" type="button" data-section="categories" data-index="06"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">06</span><span class="sm-panel-itemLabel" data-i18n="categories">Categories</span></span></button>
+            <button class="nav-item border-glow-card" type="button" data-section="dashboard" data-index="07"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">07</span><span class="sm-panel-itemLabel" data-i18n="dashboard">Dashboard</span></span></button>
+            <button class="nav-item border-glow-card" type="button" data-section="chat-history" data-index="08"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">08</span><span class="sm-panel-itemLabel" data-i18n="chatHistory">Chat History</span></span></button>
+            <button class="nav-item border-glow-card" type="button" data-section="unanswered" data-index="09"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">09</span><span class="sm-panel-itemLabel" data-i18n="unansweredQuestions">Unanswered Questions</span></span></button>
+            <button class="nav-item border-glow-card" type="button" data-section="tickets" data-index="10"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">10</span><span class="sm-panel-itemLabel" data-i18n="supportTickets">Support Tickets</span></span></button>
+            <button class="nav-item border-glow-card" type="button" data-section="feedback" data-index="11"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">11</span><span class="sm-panel-itemLabel" data-i18n="feedback">Feedback</span></span></button>
+            <button class="nav-item border-glow-card admin-only" type="button" data-section="security-center" data-index="12"><span class="edge-light"></span><span class="border-glow-inner"><span class="sm-panel-index">12</span><span class="sm-panel-itemLabel" data-i18n="securityCenter">Security Center</span></span></button>
+        </nav>
+    </aside>
+
+    <div class="main-shell">
+        <header class="topbar">
+            <div class="page-heading">
+                <p class="eyebrow" data-i18n="supportPlatform">Support Platform</p>
+                <h1 id="pageTitle" data-i18n="customerChat">Customer Chat</h1>
+                <div id="pageSubtitle" class="curved-loop" aria-label="Chat with Real AI, or switch to FAQ mode for database-only support answers.">
+                    <svg class="curved-loop-svg" viewBox="0 0 960 112" role="img" aria-hidden="true" preserveAspectRatio="none">
+                        <defs>
+                            <path id="pageSubtitleCurve" d="M 24 76 C 178 28 302 28 456 76 S 732 124 936 76"></path>
+                        </defs>
+                        <text class="curved-loop-text">
+                            <textPath id="pageSubtitleText" href="#pageSubtitleCurve" startOffset="0%">Chat with Real AI, or switch to FAQ mode for database-only support answers.</textPath>
+                        </text>
+                        <text class="curved-loop-text curved-loop-text-copy">
+                            <textPath id="pageSubtitleTextCopy" href="#pageSubtitleCurve" startOffset="-100%">Chat with Real AI, or switch to FAQ mode for database-only support answers.</textPath>
+                        </text>
+                    </svg>
+                    <span id="pageSubtitleAccessible" class="sr-only">Chat with Real AI, or switch to FAQ mode for database-only support answers.</span>
+                </div>
+                <p id="pageFeatureLine" class="page-feature-line" data-i18n="tokenFeatureLine">AI token usage counts only when the Real AI API answers. Users get 20,000 tokens; admins are unlimited.</p>
+            </div>
+            <div class="top-actions">
+                <div id="userChip" class="user-chip" aria-label="Signed in user">
+                    <span id="userInitials">U</span>
+                    <div>
+                        <strong id="userName">User</strong>
+                        <small id="userRole">USER</small>
+                    </div>
+                </div>
+                <div class="token-meter" aria-label="Real AI token usage">
+                    <div class="token-meter-head">
+                        <span>AI Tokens</span>
+                        <strong><span id="tokenUsedCount">0</span>/<span id="tokenLimitCount">20,000</span></strong>
+                    </div>
+                    <div class="token-meter-track">
+                        <span id="tokenMeterFill"></span>
+                    </div>
+                    <small><span id="tokenRemainingCount">20,000</span> remaining</small>
+                    <small id="tokenLastUsageStatus">No AI request yet.</small>
+                </div>
+                <button id="logoutBtn" class="button button-secondary" type="button">Logout</button>
+                <button id="swaggerBtn" class="button button-secondary admin-only" type="button" data-i18n="swagger">Swagger</button>
+                <label class="compact-label" for="languageSelect">
+                    <span data-i18n="language">Language</span>
+                    <select id="languageSelect">
+                        <option value="EN" data-i18n="english">English</option>
+                        <option value="AR" data-i18n="arabic">Arabic</option>
+                    </select>
+                </label>
+            </div>
+        </header>
+
+        <main class="content">
+            <section id="customer-chat" class="section active" data-title-key="customerChat" data-subtitle-key="customerChatSubtitle">
+                <div class="chat-layout">
+                    <article class="chat-panel">
+                        <div class="section-heading">
+                            <div>
+                                <h2 data-i18n="askQuestion">Ask a question</h2>
+                                <p data-i18n="chatHint">Choose an agent mode and language before sending your question.</p>
+                            </div>
+                        </div>
+                        <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
+                        <form id="chatForm" class="chat-form">
+                            <div class="control-row">
+                                <label>
+                                    <span data-i18n="selectAgentMode">Select Agent Mode</span>
+                                    <select id="agentModeSelect">
+                                        <option value="REAL_AI" data-i18n="realAiAgent">Real AI Agent</option>
+                                        <option value="FAQ_ONLY" data-i18n="faqDatabaseAgent">FAQ Database Agent</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span data-i18n="selectLanguage">Select Language</span>
+                                    <select id="chatLanguageSelect">
+                                        <option value="EN" data-i18n="english">English</option>
+                                        <option value="AR" data-i18n="arabic">Arabic</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <label>
+                                <span data-i18n="question">Question</span>
+                                <textarea id="chatInput" rows="4" required data-i18n-placeholder="chatPlaceholder" placeholder="How can we help?"></textarea>
+                            </label>
+                            <p id="voiceStatus" class="voice-status" aria-live="polite" data-i18n="voiceIdle">Voice input ready.</p>
+                            <div class="form-actions">
+                                <button id="voiceInputBtn" class="button button-secondary voice-button" type="button" data-i18n="voiceInput">Voice</button>
+                                <button id="sendQuestionBtn" class="button" type="submit" data-i18n="send">Send</button>
+                                <button class="button button-secondary" type="button" data-action="open-support" data-i18n="contactHumanSupport">Contact Human Support</button>
+                            </div>
+                        </form>
+                    </article>
+
+                    <aside class="card side-panel">
+                        <h2 data-i18n="quickActions">Quick Actions</h2>
+                        <button class="button button-secondary full-width" type="button" data-section-link="chat-history" data-i18n="chatHistory">Chat History</button>
+                        <button class="button button-secondary full-width" type="button" data-section-link="unanswered" data-i18n="unansweredQuestions">Unanswered Questions</button>
+                        <button class="button button-secondary full-width" type="button" data-section-link="tickets" data-i18n="createTicket">Create Ticket</button>
+                        <div class="info-box">
+                            <strong data-i18n="faqDatabaseAgent">FAQ Database Agent</strong>
+                            <p data-i18n="faqAgentDescription">Answers only from approved FAQ records and escalates unanswered questions.</p>
+                        </div>
+                        <div class="info-box">
+                            <strong data-i18n="realAiAgent">Real AI Agent</strong>
+                            <p data-i18n="realAiDescription">Uses the backend AI service with FAQ context. API keys stay on the server.</p>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+
+            <section id="faq-agent" class="section" data-title-key="faqDatabaseAgent" data-subtitle-key="faqAgentPageSubtitle">
+                <article class="card prose">
+                    <h2 data-i18n="faqDatabaseAgent">FAQ Database Agent</h2>
+                    <p data-i18n="faqAgentDescription">Answers only from approved FAQ records and escalates unanswered questions.</p>
+                    <button class="button" type="button" data-action="open-support" data-i18n="contactHumanSupport">Contact Human Support</button>
+                </article>
+            </section>
+
+            <section id="real-ai" class="section" data-title-key="realAiAgent" data-subtitle-key="realAiPageSubtitle">
+                <article class="card prose">
+                    <h2 data-i18n="realAiAgent">Real AI Agent</h2>
+                    <p data-i18n="realAiDescription">Uses the backend AI service with FAQ context. API keys stay on the server.</p>
+                    <button id="loadAiModesBtn" class="button button-secondary" type="button" data-i18n="refresh">Refresh</button>
+                    <div id="aiModesList" class="item-list"></div>
+                </article>
+            </section>
+
+            <section id="faq-management" class="section" data-title-key="faqManagement" data-subtitle-key="faqManagementSubtitle">
+                <div class="section-heading">
+                    <div>
+                        <h2 data-i18n="faqManagement">FAQ Management</h2>
+                        <p data-i18n="faqManagementSubtitle">Create, edit, search, and publish FAQ answers used by the database agent.</p>
+                    </div>
+                    <button id="resetFaqBtn" class="button button-secondary" type="button" data-i18n="addFaq">Add FAQ</button>
+                </div>
+                <article class="card">
+                    <form id="faqForm" class="grid-form">
+                        <input id="faqId" type="hidden">
+                        <label class="wide">
+                            <span data-i18n="question">Question</span>
+                            <textarea id="faqQuestion" rows="3" required></textarea>
+                        </label>
+                        <label class="wide">
+                            <span data-i18n="answer">Answer</span>
+                            <textarea id="faqAnswer" rows="3" required></textarea>
+                        </label>
+                        <label>
+                            <span data-i18n="category">Category</span>
+                            <input id="faqCategory" type="text">
+                        </label>
+                        <label>
+                            <span data-i18n="status">Status</span>
+                            <select id="faqStatus">
+                                <option value="ACTIVE" data-i18n="active">Active</option>
+                                <option value="INACTIVE" data-i18n="inactive">Inactive</option>
+                                <option value="DRAFT" data-i18n="draft">Draft</option>
+                                <option value="ARCHIVED" data-i18n="archived">Archived</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span data-i18n="language">Language</span>
+                            <select id="faqLanguage">
+                                <option value="EN" data-i18n="english">English</option>
+                                <option value="AR" data-i18n="arabic">Arabic</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span data-i18n="priority">Priority</span>
+                            <select id="faqPriority">
+                                <option value="LOW">LOW</option>
+                                <option value="NORMAL" selected>NORMAL</option>
+                                <option value="HIGH">HIGH</option>
+                                <option value="CRITICAL">CRITICAL</option>
+                            </select>
+                        </label>
+                        <label class="wide">
+                            <span data-i18n="keywords">Keywords</span>
+                            <input id="faqKeywords" type="text" data-i18n-placeholder="keywordsPlaceholder" placeholder="password, login, account">
+                        </label>
+                        <div class="form-actions wide">
+                            <button class="button" type="submit" data-i18n="save">Save</button>
+                            <button id="cancelFaqBtn" class="button button-secondary" type="button" data-i18n="cancel">Cancel</button>
+                        </div>
+                    </form>
+                </article>
+                <div class="toolbar">
+                    <input id="faqSearchInput" type="search" data-i18n-placeholder="search" placeholder="Search">
+                    <input id="faqCategoryFilter" type="text" data-i18n-placeholder="category" placeholder="Category">
+                    <select id="faqStatusFilter">
+                        <option value="" data-i18n="allStatuses">All statuses</option>
+                        <option value="ACTIVE" data-i18n="active">Active</option>
+                        <option value="INACTIVE" data-i18n="inactive">Inactive</option>
+                        <option value="DRAFT" data-i18n="draft">Draft</option>
+                        <option value="ARCHIVED" data-i18n="archived">Archived</option>
+                    </select>
+                    <select id="faqLanguageFilter">
+                        <option value="" data-i18n="allLanguages">All languages</option>
+                        <option value="EN" data-i18n="english">English</option>
+                        <option value="AR" data-i18n="arabic">Arabic</option>
+                    </select>
+                    <button id="faqRefreshBtn" class="button button-secondary" type="button" data-i18n="refresh">Refresh</button>
+                </div>
+                <div id="faqList" class="item-list"></div>
+            </section>
+
+            <section id="ai-learning" class="section" data-title-key="aiLearningCenter" data-subtitle-key="aiLearningSubtitle">
+                <div class="section-heading">
+                    <div>
+                        <h2 data-i18n="aiLearningCenter">AI Learning Center</h2>
+                        <p data-i18n="aiLearningSubtitle">Review AI-generated FAQs before they become active FAQ answers.</p>
+                    </div>
+                    <button id="aiLearningRefreshBtn" class="button button-secondary" type="button" data-i18n="refresh">Refresh</button>
+                </div>
+                <article class="card">
+                    <h3 data-i18n="pendingReviewFaqs">Pending review FAQs</h3>
+                    <div id="pendingGeneratedFaqList" class="item-list"></div>
+                </article>
+                <article class="card">
+                    <h3 data-i18n="aiGeneratedFaqs">AI-generated FAQs</h3>
+                    <div id="generatedFaqList" class="item-list"></div>
+                </article>
+            </section>
+
+            <section id="categories" class="section" data-title-key="categories" data-subtitle-key="categoriesSubtitle">
+                <div class="section-heading">
+                    <div>
+                        <h2 data-i18n="categories">Categories</h2>
+                        <p data-i18n="categoriesSubtitle">Organize FAQs by support topic and language.</p>
+                    </div>
+                </div>
+                <article class="card">
+                    <form id="categoryForm" class="grid-form">
+                        <input id="categoryId" type="hidden">
+                        <label>
+                            <span data-i18n="nameEnglish">Name English</span>
+                            <input id="categoryNameEnglish" required>
+                        </label>
+                        <label>
+                            <span data-i18n="nameArabic">Name Arabic</span>
+                            <input id="categoryNameArabic">
+                        </label>
+                        <label>
+                            <span data-i18n="status">Status</span>
+                            <input id="categoryStatus" value="ACTIVE">
+                        </label>
+                        <label class="wide">
+                            <span data-i18n="description">Description</span>
+                            <textarea id="categoryDescription" rows="2"></textarea>
+                        </label>
+                        <div class="form-actions wide">
+                            <button class="button" type="submit" data-i18n="save">Save</button>
+                        </div>
+                    </form>
+                </article>
+                <div id="categoryList" class="item-list"></div>
+            </section>
+
+            <section id="dashboard" class="section" data-title-key="dashboard" data-subtitle-key="dashboardSubtitle">
+                <div class="section-heading">
+                    <div>
+                        <h2 data-i18n="dashboard">Dashboard</h2>
+                        <p data-i18n="dashboardSubtitle">Monitor FAQ coverage, support demand, ticket status, and feedback quality.</p>
+                    </div>
+                    <button id="dashboardRefreshBtn" class="button button-secondary" type="button" data-i18n="refresh">Refresh</button>
+                </div>
+                <div id="dashboardStats" class="stats-grid"></div>
+            </section>
+
+            <section id="chat-history" class="section" data-title-key="chatHistory" data-subtitle-key="chatHistorySubtitle">
+                <div class="section-heading">
+                    <div>
+                        <h2 data-i18n="chatHistory">Chat History</h2>
+                        <p data-i18n="chatHistorySubtitle">View all customer questions, AI responses, confidence scores, and support escalation results.</p>
+                    </div>
+                    <div class="header-actions">
+                        <button id="historyRefreshBtn" class="button button-secondary" type="button" data-i18n="refresh">Refresh</button>
+                        <button id="historyClearBtn" class="button button-danger" type="button" data-i18n="clearHistory">Clear History</button>
+                    </div>
+                </div>
+                <div class="toolbar">
+                    <input id="historySearchInput" type="search" data-i18n-placeholder="search" placeholder="Search">
+                    <select id="historyModeFilter">
+                        <option value="" data-i18n="all">All</option>
+                        <option value="FAQ_ONLY" data-i18n="faqDatabaseAgent">FAQ Database Agent</option>
+                        <option value="REAL_AI" data-i18n="realAiAgent">Real AI Agent</option>
+                    </select>
+                    <select id="historyStatusFilter">
+                        <option value="" data-i18n="all">All</option>
+                        <option value="answered" data-i18n="answered">Answered</option>
+                        <option value="unanswered" data-i18n="unanswered">Unanswered</option>
+                    </select>
+                    <select id="historyLanguageFilter">
+                        <option value="" data-i18n="all">All</option>
+                        <option value="EN" data-i18n="english">English</option>
+                        <option value="AR" data-i18n="arabic">Arabic</option>
+                    </select>
+                </div>
+                <div id="chatHistoryList" class="item-list"></div>
+            </section>
+
+            <section id="unanswered" class="section" data-title-key="unansweredQuestions" data-subtitle-key="unansweredSubtitle">
+                <div class="section-heading">
+                    <div>
+                        <h2 data-i18n="unansweredQuestions">Unanswered Questions</h2>
+                        <p data-i18n="unansweredSubtitle">Review questions that the AI could not answer and convert them into FAQs or escalate them to support.</p>
+                    </div>
+                    <button id="unansweredRefreshBtn" class="button button-secondary" type="button" data-i18n="refresh">Refresh</button>
+                </div>
+                <div class="toolbar">
+                    <input id="unansweredSearchInput" type="search" data-i18n-placeholder="search" placeholder="Search">
+                    <select id="unansweredStatusFilter">
+                        <option value="" data-i18n="all">All</option>
+                        <option value="NEW" data-i18n="newStatus">New</option>
+                        <option value="REVIEWED" data-i18n="reviewed">Reviewed</option>
+                        <option value="RESOLVED" data-i18n="resolved">Resolved</option>
+                        <option value="ESCALATED" data-i18n="escalated">Escalated</option>
+                        <option value="CONVERTED_TO_FAQ" data-i18n="convertedToFaq">Converted to FAQ</option>
+                    </select>
+                    <select id="unansweredLanguageFilter">
+                        <option value="" data-i18n="all">All</option>
+                        <option value="EN" data-i18n="english">English</option>
+                        <option value="AR" data-i18n="arabic">Arabic</option>
+                    </select>
+                </div>
+                <div id="unansweredList" class="item-list"></div>
+            </section>
+
+            <section id="tickets" class="section" data-title-key="supportTickets" data-subtitle-key="ticketsSubtitle">
+                <div class="section-heading">
+                    <div>
+                        <h2 data-i18n="supportTickets">Support Tickets</h2>
+                        <p data-i18n="ticketsSubtitle">Create and track human support follow-ups.</p>
+                    </div>
+                </div>
+                <article class="card">
+                    <form id="ticketForm" class="grid-form">
+                        <label>
+                            <span data-i18n="customerName">Customer Name</span>
+                            <input id="ticketCustomerName">
+                        </label>
+                        <label>
+                            <span data-i18n="customerEmail">Customer Email</span>
+                            <input id="ticketCustomerEmail" type="email">
+                        </label>
+                        <label>
+                            <span data-i18n="subject">Subject</span>
+                            <input id="ticketSubject">
+                        </label>
+                        <label>
+                            <span data-i18n="priority">Priority</span>
+                            <select id="ticketPriority">
+                                <option value="LOW">LOW</option>
+                                <option value="MEDIUM" selected>MEDIUM</option>
+                                <option value="HIGH">HIGH</option>
+                                <option value="URGENT">URGENT</option>
+                            </select>
+                        </label>
+                        <label class="wide">
+                            <span data-i18n="message">Message</span>
+                            <textarea id="ticketMessage" rows="3" required></textarea>
+                        </label>
+                        <div class="form-actions wide">
+                            <button class="button" type="submit" data-i18n="createTicket">Create Ticket</button>
+                        </div>
+                    </form>
+                </article>
+                <div id="ticketsList" class="item-list"></div>
+            </section>
+
+            <section id="feedback" class="section" data-title-key="feedback" data-subtitle-key="feedbackSubtitle">
+                <div class="section-heading">
+                    <div>
+                        <h2 data-i18n="feedback">Feedback</h2>
+                        <p data-i18n="feedbackSubtitle">Review answer quality signals from customers.</p>
+                    </div>
+                    <button id="feedbackRefreshBtn" class="button button-secondary" type="button" data-i18n="refresh">Refresh</button>
+                </div>
+                <div id="feedbackSummary" class="stats-grid compact"></div>
+                <div id="feedbackList" class="item-list"></div>
+            </section>
+
+            <section id="security-center" class="section admin-only" data-title-key="securityCenter" data-subtitle-key="securitySubtitle">
+                <div class="section-heading">
+                    <div>
+                        <h2 data-i18n="securityCenter">Security Center</h2>
+                        <p data-i18n="securitySubtitle">Monitor audit logs, honeypot decoy triggers, and temporary IP blocks.</p>
+                    </div>
+                    <button id="securityRefreshBtn" class="button button-secondary" type="button" data-i18n="refresh">Refresh</button>
+                </div>
+                <article class="card prose">
+                    <h3 data-i18n="honeypotDecoyTrap">Honeypot Decoy Trap</h3>
+                    <p data-i18n="honeypotExplanation">Honeypot decoy files are fake important-looking resources. If a bot or attacker tries to access them, the system logs the attempt and can temporarily block the IP.</p>
+                </article>
+                <div id="securityStats" class="stats-grid"></div>
+                <article class="card">
+                    <h3 data-i18n="honeypotEvents">Honeypot Events</h3>
+                    <div id="honeypotEventsList" class="item-list"></div>
+                </article>
+                <article class="card">
+                    <h3 data-i18n="blockedIps">Blocked IPs</h3>
+                    <div id="blockedIpsList" class="item-list"></div>
+                </article>
+                <article class="card">
+                    <h3 data-i18n="auditLogs">Audit Logs</h3>
+                    <div id="auditLogsList" class="item-list"></div>
+                </article>
+            </section>
+
+        </main>
+    </div>
+</div>
+
+<div id="toastContainer" class="toast-container" aria-live="polite"></div>
+<script src="script.js"></script>
+</body>
+</html>

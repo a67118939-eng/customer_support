@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in | Rushd AI Support</title>
+    <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+<div class="auth-bg" aria-hidden="true">
+    <span class="light-streak streak-one"></span>
+    <span class="light-streak streak-two"></span>
+    <span class="light-streak streak-three"></span>
+</div>
+
+<main class="auth-shell">
+    <section class="auth-panel" aria-label="Account access">
+        <div class="auth-brand">
+            <span class="brand-mark">R</span>
+            <div>
+                <strong>Rushd AI</strong>
+                <small>AI Support Operations</small>
+            </div>
+        </div>
+
+        <div class="auth-copy">
+            <h1 id="authTitle">Welcome back</h1>
+            <p id="authSubtitle">Sign in to manage support workflows, AI answers, tickets, and security events.</p>
+        </div>
+
+        <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+            <button id="loginTab" class="auth-tab active" type="button" role="tab" aria-selected="true">Login</button>
+            <button id="registerTab" class="auth-tab" type="button" role="tab" aria-selected="false">Register</button>
+        </div>
+
+        <form id="loginForm" class="auth-form active" novalidate>
+            <label>
+                <span>Email</span>
+                <input id="loginEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+            </label>
+
+            <label>
+                <span>Password</span>
+                <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Enter your password">
+            </label>
+
+            <button class="auth-submit" type="submit">Sign in</button>
+        </form>
+
+        <form id="registerForm" class="auth-form" novalidate>
+            <label>
+                <span>Full name</span>
+                <input id="registerName" type="text" autocomplete="name" required maxlength="140" placeholder="Support Admin">
+            </label>
+
+            <label>
+                <span>Email</span>
+                <input id="registerEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+            </label>
+
+            <label>
+                <span>Password</span>
+                <input id="registerPassword" type="password" autocomplete="new-password" required placeholder="Create a strong password">
+            </label>
+
+            <label>
+                <span>Confirm password</span>
+                <input id="confirmPassword" type="password" autocomplete="new-password" required placeholder="Repeat password">
+            </label>
+
+            <ul class="password-rules" aria-label="Password requirements">
+                <li>At least 10 characters</li>
+                <li>Uppercase, lowercase, number, and symbol</li>
+                <li>Registered accounts are created as standard users</li>
+            </ul>
+
+            <button class="auth-submit" type="submit">Create account</button>
+        </form>
+
+        <p id="authMessage" class="auth-message" role="status" aria-live="polite"></p>
+    </section>
+
+    <aside class="security-panel" aria-label="Security features">
+        <div class="login-logo-stage" aria-label="Rushd AI Logo"></div>
+
+        <h2>Protected by default</h2>
+
+        <div class="security-list">
+            <div>
+                <strong>Session security</strong>
+                <span>HttpOnly cookies, CSRF checks, and automatic timeout.</span>
+            </div>
+
+            <div>
+                <strong>Account hardening</strong>
+                <span>BCrypt password hashing and lockout after repeated failures.</span>
+            </div>
+
+            <div>
+                <strong>Operational defense</strong>
+                <span>Audit logs, rate limits, suspicious request blocking, and role gates.</span>
+            </div>
+        </div>
+    </aside>
+</main>
+
+<script src="auth.js"></script>
+</body>
+</html>
