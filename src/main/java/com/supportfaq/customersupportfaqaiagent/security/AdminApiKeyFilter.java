@@ -78,13 +78,12 @@ public class AdminApiKeyFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/unanswered")) {
             return true;
         }
-        if (path.equals("/api/chat/history")) {
-            return true;
-        }
         if (path.startsWith("/api/feedback") && "GET".equalsIgnoreCase(method)) {
             return true;
         }
-        if (path.startsWith("/api/tickets") && !"POST".equalsIgnoreCase(method)) {
+        if (path.startsWith("/api/tickets")
+                && !"GET".equalsIgnoreCase(method)
+                && !"POST".equalsIgnoreCase(method)) {
             return true;
         }
         if (path.startsWith("/api/categories") && !"GET".equalsIgnoreCase(method)) {

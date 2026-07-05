@@ -23,7 +23,6 @@ const api = {
 const ADMIN_ONLY_SECTIONS = new Set([
     "dashboard",
     "ai-learning",
-    "chat-history",
     "unanswered",
     "feedback",
     "security-center"
@@ -33,9 +32,7 @@ const ADMIN_ONLY_CONTAINERS = new Set([
     "dashboardStats",
     "pendingGeneratedFaqList",
     "generatedFaqList",
-    "chatHistoryList",
     "unansweredList",
-    "ticketsList",
     "feedbackSummary",
     "feedbackList",
     "securityStats",
@@ -202,7 +199,7 @@ const translations = {
         clearHistoryUnavailable: "Clear history API is not available yet.",
         feedbackSaved: "Feedback saved.",
         unableToComplete: "Unable to complete the request.",
-        adminOnlyPage: "These features are open for admin only.",
+        adminOnlyPage: "this is admin page only",
         noTickets: "No support tickets yet.",
         noFeedback: "No feedback yet.",
         noCategories: "No categories yet.",
@@ -331,7 +328,7 @@ const translations = {
         clearHistoryUnavailable: "واجهة مسح السجل غير متاحة بعد.",
         feedbackSaved: "تم حفظ التقييم.",
         unableToComplete: "تعذر إكمال الطلب.",
-        adminOnlyPage: "These features are open for admin only.",
+        adminOnlyPage: "this is admin page only",
         noTickets: "لا توجد تذاكر دعم حتى الآن.",
         noFeedback: "لا توجد تقييمات حتى الآن.",
         noCategories: "لا توجد تصنيفات حتى الآن.",
@@ -1349,16 +1346,16 @@ function requiresCsrf(method) {
 }
 
 async function loadChatHistory() {
-    if (!isAdmin()) {
-        renderAdminOnlySection("chat-history");
-        return;
-    }
     renderLoading("chatHistoryList");
     try {
         let data;
-        try {
-            data = await apiRequest(api.dashboardHistory);
-        } catch {
+        if (isAdmin()) {
+            try {
+                data = await apiRequest(api.dashboardHistory);
+            } catch {
+                data = await apiRequest(api.chatHistory);
+            }
+        } else {
             data = await apiRequest(api.chatHistory);
         }
         state.chatHistory = toArray(data, ["history", "items", "content"]);
@@ -1930,10 +1927,6 @@ async function saveTicket(event) {
 }
 
 async function loadTickets() {
-    if (!isAdmin()) {
-        renderError("ticketsList", t("adminOnlyPage"));
-        return;
-    }
     renderLoading("ticketsList");
     try {
         const data = await apiRequest(api.tickets);
