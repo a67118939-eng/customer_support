@@ -20,6 +20,15 @@ const api = {
     blockedIps: "/api/security/blocked-ips"
 };
 
+const ADMIN_ONLY_SECTIONS = new Set([
+    "dashboard",
+    "ai-learning",
+    "chat-history",
+    "unanswered",
+    "feedback",
+    "security-center"
+]);
+
 const translations = {
     EN: {
         swagger: "Swagger",
@@ -178,7 +187,7 @@ const translations = {
         clearHistoryUnavailable: "Clear history API is not available yet.",
         feedbackSaved: "Feedback saved.",
         unableToComplete: "Unable to complete the request.",
-        adminOnlyPage: "This page is available for admins only.",
+        adminOnlyPage: "These features are open for admin only.",
         noTickets: "No support tickets yet.",
         noFeedback: "No feedback yet.",
         noCategories: "No categories yet.",
@@ -307,7 +316,7 @@ const translations = {
         clearHistoryUnavailable: "واجهة مسح السجل غير متاحة بعد.",
         feedbackSaved: "تم حفظ التقييم.",
         unableToComplete: "تعذر إكمال الطلب.",
-        adminOnlyPage: "This page is available for admins only.",
+        adminOnlyPage: "These features are open for admin only.",
         noTickets: "لا توجد تذاكر دعم حتى الآن.",
         noFeedback: "لا توجد تقييمات حتى الآن.",
         noCategories: "لا توجد تصنيفات حتى الآن.",
@@ -411,17 +420,22 @@ async function initApp() {
     seedChatWelcome();
     loadTokenUsage();
     showSection("customer-chat");
-    Promise.allSettled([
-        loadDashboardStats(),
+    const startupLoads = [
         loadFaqs(),
-        loadAiLearningCenter(),
-        loadChatHistory(),
-        loadUnansweredQuestions(),
-        loadCategories(),
-        loadTickets(),
-        loadFeedback(),
-        loadSecurityCenter()
-    ]);
+        loadCategories()
+    ];
+    if (isAdmin()) {
+        startupLoads.push(
+            loadDashboardStats(),
+            loadAiLearningCenter(),
+            loadChatHistory(),
+            loadUnansweredQuestions(),
+            loadTickets(),
+            loadFeedback(),
+            loadSecurityCenter()
+        );
+    }
+    Promise.allSettled(startupLoads);
 }
 
 function initClickSpark() {
@@ -1232,6 +1246,11 @@ function showSection(sectionName) {
         setCurvedSubtitle(t(section.dataset.subtitleKey || "customerChatSubtitle"));
     }
 
+    if (!isAdmin() && ADMIN_ONLY_SECTIONS.has(sectionName)) {
+        renderAdminOnlySection(sectionName);
+        return;
+    }
+
     if (sectionName === "dashboard") loadDashboardStats();
     if (sectionName === "faq-management") loadFaqs();
     if (sectionName === "ai-learning") loadAiLearningCenter();
@@ -1240,6 +1259,24 @@ function showSection(sectionName) {
     if (sectionName === "categories") loadCategories();
     if (sectionName === "tickets") loadTickets();
     if (sectionName === "feedback") loadFeedback();
+}
+
+function renderAdminOnlySection(sectionName) {
+    const message = t("adminOnlyPage");
+    const sectionContainers = {
+        dashboard: ["dashboardStats"],
+        "ai-learning": ["pendingGeneratedFaqList", "generatedFaqList"],
+        "chat-history": ["chatHistoryList"],
+        unanswered: ["unansweredList"],
+        feedback: ["feedbackSummary", "feedbackList"],
+        "security-center": ["securityStats", "honeypotEventsList", "blockedIpsList", "auditLogsList"]
+    };
+
+    (sectionContainers[sectionName] || []).forEach(containerId => {
+        if (byId(containerId)) {
+            renderError(containerId, message);
+        }
+    });
 }
 
 function showToast(message, type = "info") {
@@ -1297,6 +1334,10 @@ function requiresCsrf(method) {
 }
 
 async function loadChatHistory() {
+    if (!isAdmin()) {
+        renderAdminOnlySection("chat-history");
+        return;
+    }
     renderLoading("chatHistoryList");
     try {
         let data;
@@ -1351,6 +1392,10 @@ function renderChatHistory(items) {
 }
 
 async function loadUnansweredQuestions() {
+    if (!isAdmin()) {
+        renderAdminOnlySection("unanswered");
+        return;
+    }
     renderLoading("unansweredList");
     try {
         const data = await apiRequest(api.unanswered);
@@ -1436,6 +1481,10 @@ function renderFaqs(items) {
 }
 
 async function loadAiLearningCenter() {
+    if (!isAdmin()) {
+        renderAdminOnlySection("ai-learning");
+        return;
+    }
     renderLoading("pendingGeneratedFaqList");
     renderLoading("generatedFaqList");
     try {
@@ -1504,6 +1553,10 @@ async function rejectGeneratedFaq(id) {
 }
 
 async function loadDashboardStats() {
+    if (!isAdmin()) {
+        renderAdminOnlySection("dashboard");
+        return;
+    }
     renderLoading("dashboardStats");
     try {
         const stats = await apiRequest(api.stats);
@@ -1861,6 +1914,10 @@ async function saveTicket(event) {
 }
 
 async function loadTickets() {
+    if (!isAdmin()) {
+        renderError("ticketsList", t("adminOnlyPage"));
+        return;
+    }
     renderLoading("ticketsList");
     try {
         const data = await apiRequest(api.tickets);
@@ -1892,6 +1949,10 @@ async function loadTickets() {
 }
 
 async function loadFeedback() {
+    if (!isAdmin()) {
+        renderAdminOnlySection("feedback");
+        return;
+    }
     renderLoading("feedbackList");
     try {
         const [summary, feedback] = await Promise.all([
@@ -1932,6 +1993,10 @@ function renderFeedbackSummary(summary) {
 }
 
 async function loadSecurityCenter() {
+    if (!isAdmin()) {
+        renderAdminOnlySection("security-center");
+        return;
+    }
     renderLoading("securityStats");
     renderLoading("honeypotEventsList");
     renderLoading("blockedIpsList");
