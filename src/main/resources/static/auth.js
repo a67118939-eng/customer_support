@@ -36,7 +36,7 @@ function setMode(mode) {
 
 async function checkExistingSession() {
     try {
-        const response = await fetch("/api/auth/me", { credentials: "same-origin" });
+        const response = await fetch("/api/auth/me", { credentials: "include" });
         if (response.ok) {
             const user = await response.json();
             saveAuth(user);
@@ -76,6 +76,7 @@ async function register(event) {
         if (password !== confirmPassword) {
             throw new Error("Passwords do not match.");
         }
+        validatePassword(password);
         const user = await authRequest("/api/auth/register", {
             fullName: byId("registerName").value,
             email: byId("registerEmail").value,
@@ -95,15 +96,33 @@ async function register(event) {
 async function authRequest(url, body) {
     const response = await fetch(url, {
         method: "POST",
-        credentials: "same-origin",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
     });
-    const data = await response.json().catch(() => null);
+    const data = await readAuthResponse(response);
     if (!response.ok) {
-        throw new Error(data?.message || "Authentication failed.");
+        throw new Error(data?.message || data?.error || `Authentication failed (${response.status}).`);
     }
     return data;
+}
+
+async function readAuthResponse(response) {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+        return response.json().catch(() => null);
+    }
+    const text = await response.text().catch(() => "");
+    return text ? { message: text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() } : null;
+}
+
+function validatePassword(password) {
+    if (!password || password.length < 10 || password.length > 128) {
+        throw new Error("Password must be between 10 and 128 characters.");
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+        throw new Error("Password must include uppercase, lowercase, number, and symbol.");
+    }
 }
 
 function saveAuth(user) {

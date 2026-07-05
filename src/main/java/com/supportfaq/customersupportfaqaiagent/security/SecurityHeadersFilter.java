@@ -49,7 +49,11 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
                             "frame-ancestors 'none';"
             );
 
-            if (request.getRequestURI().startsWith("/api/")) {
+            String path = request.getRequestURI();
+            if (path.startsWith("/api/")
+                    || path.equals("/login.html")
+                    || path.equals("/auth.js")
+                    || path.equals("/auth.css")) {
                 response.setHeader("Cache-Control", "no-store");
             }
         }
