@@ -29,6 +29,21 @@ const ADMIN_ONLY_SECTIONS = new Set([
     "security-center"
 ]);
 
+const ADMIN_ONLY_CONTAINERS = new Set([
+    "dashboardStats",
+    "pendingGeneratedFaqList",
+    "generatedFaqList",
+    "chatHistoryList",
+    "unansweredList",
+    "ticketsList",
+    "feedbackSummary",
+    "feedbackList",
+    "securityStats",
+    "honeypotEventsList",
+    "blockedIpsList",
+    "auditLogsList"
+]);
+
 const translations = {
     EN: {
         swagger: "Swagger",
@@ -1569,6 +1584,7 @@ async function loadDashboardStats() {
 
 function renderDashboardStats(stats, warningMessage = "") {
     const container = byId("dashboardStats");
+    const finalWarning = !isAdmin() ? t("adminOnlyPage") : warningMessage;
     const cards = [
         ["totalFaqs", "totalFaqs"],
         ["activeFaqs", "activeFaqs"],
@@ -1582,7 +1598,7 @@ function renderDashboardStats(stats, warningMessage = "") {
         ["unhelpfulFeedback", "unhelpfulFeedback"]
     ];
     container.innerHTML = `
-        ${warningMessage ? `<div class="error-state wide"><p>${escapeHtml(warningMessage)}</p></div>` : ""}
+        ${finalWarning ? `<div class="error-state wide"><p>${escapeHtml(finalWarning)}</p></div>` : ""}
         ${cards.map(([key, labelKey]) => `
             <div class="stat-card">
                 <span>${t(labelKey)}</span>
@@ -2261,10 +2277,13 @@ function renderEmpty(containerId, title, message = "") {
 }
 
 function renderError(containerId, message) {
+    const finalMessage = !isAdmin() && ADMIN_ONLY_CONTAINERS.has(containerId)
+        ? t("adminOnlyPage")
+        : message;
     byId(containerId).innerHTML = `
         <div class="error-state">
             <div>
-                <h3>${escapeHtml(message)}</h3>
+                <h3>${escapeHtml(finalMessage)}</h3>
             </div>
         </div>
     `;
