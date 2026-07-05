@@ -178,6 +178,7 @@ const translations = {
         clearHistoryUnavailable: "Clear history API is not available yet.",
         feedbackSaved: "Feedback saved.",
         unableToComplete: "Unable to complete the request.",
+        adminOnlyPage: "This page is available for admins only.",
         noTickets: "No support tickets yet.",
         noFeedback: "No feedback yet.",
         noCategories: "No categories yet.",
@@ -306,6 +307,7 @@ const translations = {
         clearHistoryUnavailable: "واجهة مسح السجل غير متاحة بعد.",
         feedbackSaved: "تم حفظ التقييم.",
         unableToComplete: "تعذر إكمال الطلب.",
+        adminOnlyPage: "This page is available for admins only.",
         noTickets: "لا توجد تذاكر دعم حتى الآن.",
         noFeedback: "لا توجد تقييمات حتى الآن.",
         noCategories: "لا توجد تصنيفات حتى الآن.",
@@ -385,6 +387,15 @@ const state = {
 };
 
 document.addEventListener("DOMContentLoaded", initApp);
+
+class ApiRequestError extends Error {
+    constructor(message, status, data) {
+        super(message);
+        this.name = "ApiRequestError";
+        this.status = status;
+        this.data = data;
+    }
+}
 
 async function initApp() {
     if (!REDUCED_DECORATIVE_MOTION) {
@@ -1267,9 +1278,17 @@ async function apiRequest(url, options = {}) {
     }
     if (!response.ok) {
         const message = typeof data === "object" && data ? data.message || data.error : data;
-        throw new Error(message || `Request failed with status ${response.status}`);
+        throw new ApiRequestError(message || `Request failed with status ${response.status}`, response.status, data);
     }
     return data;
+}
+
+function isForbidden(error) {
+    return Number(error?.status) === 403;
+}
+
+function adminOnlyMessage(error, fallbackKey = "unableToComplete") {
+    return isForbidden(error) ? t("adminOnlyPage") : t(fallbackKey);
 }
 
 function requiresCsrf(method) {
@@ -1291,7 +1310,7 @@ async function loadChatHistory() {
         renderChatHistory(state.chatHistory);
     } catch (error) {
         console.error(error);
-        renderError("chatHistoryList", t("chatHistoryError"));
+        renderError("chatHistoryList", adminOnlyMessage(error, "chatHistoryError"));
     }
 }
 
@@ -1339,7 +1358,7 @@ async function loadUnansweredQuestions() {
         renderUnansweredQuestions(state.unanswered);
     } catch (error) {
         console.error(error);
-        renderError("unansweredList", t("unansweredError"));
+        renderError("unansweredList", adminOnlyMessage(error, "unansweredError"));
     }
 }
 
@@ -1386,7 +1405,7 @@ async function loadFaqs() {
         renderFaqs(state.faqs);
     } catch (error) {
         console.error(error);
-        renderError("faqList", t("faqError"));
+        renderError("faqList", adminOnlyMessage(error, "faqError"));
     }
 }
 
@@ -1430,8 +1449,8 @@ async function loadAiLearningCenter() {
         renderGeneratedFaqs("generatedFaqList", state.generatedFaqs, false);
     } catch (error) {
         console.error(error);
-        renderError("pendingGeneratedFaqList", t("faqError"));
-        renderError("generatedFaqList", t("faqError"));
+        renderError("pendingGeneratedFaqList", adminOnlyMessage(error, "faqError"));
+        renderError("generatedFaqList", adminOnlyMessage(error, "faqError"));
     }
 }
 
@@ -1491,7 +1510,7 @@ async function loadDashboardStats() {
         renderDashboardStats(stats || {});
     } catch (error) {
         console.error(error);
-        renderDashboardStats(defaultStats(), t("dashboardStatsUnavailable"));
+        renderDashboardStats(defaultStats(), adminOnlyMessage(error, "dashboardStatsUnavailable"));
     }
 }
 
@@ -1868,7 +1887,7 @@ async function loadTickets() {
         `).join("");
     } catch (error) {
         console.error(error);
-        renderError("ticketsList", t("apiWaiting"));
+        renderError("ticketsList", adminOnlyMessage(error, "apiWaiting"));
     }
 }
 
@@ -1876,7 +1895,7 @@ async function loadFeedback() {
     renderLoading("feedbackList");
     try {
         const [summary, feedback] = await Promise.all([
-            apiRequest(`${api.feedback}/summary`).catch(() => ({})),
+            apiRequest(`${api.feedback}/summary`),
             apiRequest(api.feedback)
         ]);
         state.feedback = toArray(feedback, ["feedback", "items", "content"]);
@@ -1896,12 +1915,16 @@ async function loadFeedback() {
         `).join("");
     } catch (error) {
         console.error(error);
-        renderFeedbackSummary({});
-        renderError("feedbackList", t("apiWaiting"));
+        renderFeedbackSummary(isForbidden(error) ? null : {});
+        renderError("feedbackList", adminOnlyMessage(error, "apiWaiting"));
     }
 }
 
 function renderFeedbackSummary(summary) {
+    if (!summary) {
+        renderError("feedbackSummary", t("adminOnlyPage"));
+        return;
+    }
     byId("feedbackSummary").innerHTML = `
         <div class="stat-card"><span>${t("helpfulFeedback")}</span><strong>${Number(summary.helpfulFeedback || summary.helpful || 0)}</strong></div>
         <div class="stat-card"><span>${t("unhelpfulFeedback")}</span><strong>${Number(summary.unhelpfulFeedback || summary.unhelpful || 0)}</strong></div>
@@ -1930,10 +1953,11 @@ async function loadSecurityCenter() {
         renderAuditLogs(state.auditLogs);
     } catch (error) {
         console.error(error);
-        renderError("securityStats", t("unableToComplete"));
-        renderError("honeypotEventsList", t("unableToComplete"));
-        renderError("blockedIpsList", t("unableToComplete"));
-        renderError("auditLogsList", t("unableToComplete"));
+        const message = adminOnlyMessage(error, "unableToComplete");
+        renderError("securityStats", message);
+        renderError("honeypotEventsList", message);
+        renderError("blockedIpsList", message);
+        renderError("auditLogsList", message);
     }
 }
 
@@ -2044,7 +2068,7 @@ async function loadAiModes() {
         `).join("");
     } catch (error) {
         console.error(error);
-        renderError("aiModesList", t("apiWaiting"));
+        renderError("aiModesList", adminOnlyMessage(error, "apiWaiting"));
     }
 }
 
