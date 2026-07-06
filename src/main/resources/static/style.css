@@ -327,6 +327,11 @@ body.menu-open .sidebar {
     transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
+.nav-item.user-menu-hidden,
+.user-menu-hidden {
+    display: none !important;
+}
+
 .nav-item:hover,
 .nav-item.active {
     color: var(--text);

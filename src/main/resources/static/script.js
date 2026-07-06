@@ -717,9 +717,14 @@ function applyRoleAccess() {
     });
     document.querySelectorAll("#sidebarNav .nav-item").forEach(item => {
         const allowedForUser = USER_MENU_INDEXES.has(item.dataset.index);
-        item.hidden = !isAdmin() && !allowedForUser;
+        const hideForUser = !isAdmin() && !allowedForUser;
+        item.hidden = hideForUser;
+        item.classList.toggle("user-menu-hidden", hideForUser);
+        item.style.display = hideForUser ? "none" : "";
     });
-    if (!isAdmin() && state.currentSection === "security-center") {
+    const currentNavItem = document.querySelector(`#sidebarNav .nav-item[data-section="${state.currentSection}"]`);
+    const currentAllowedForUser = currentNavItem && USER_MENU_INDEXES.has(currentNavItem.dataset.index);
+    if (!isAdmin() && !currentAllowedForUser) {
         showSection("customer-chat");
     }
 }
