@@ -3440,4 +3440,700 @@ function prefillTicket(message = "") {
             subtree: true
         });
     }
+})();/* ============================================================
+   RUSH FINAL CHAT + VOICE FIX V2
+   Paste at the VERY BOTTOM of src/main/resources/static/script.js
+
+   Fixes:
+   1. USER never gets moved to "admins only" page after sending.
+   2. USER stays on Customer Chat after normal text or voice message.
+   3. Admin-only loaders run only for ADMIN.
+   4. Voice recording does NOT submit the copied transcript as normal text.
+   5. Voice reply auto-plays backend audio if returned.
+   6. If backend does not return audio, browser speech speaks the AI answer.
+   ============================================================ */
+
+(function rushFinalChatVoiceFixV2() {
+    const USER_ALLOWED_SECTIONS_V2 = new Set([
+        "customer-chat",
+        "faq-agent",
+        "real-ai",
+        "feedback"
+    ]);
+
+    const ADMIN_ONLY_SECTIONS_V2 = new Set([
+        "faq-management",
+        "ai-learning",
+        "categories",
+        "dashboard",
+        "chat-history",
+        "unanswered",
+        "tickets",
+        "security-center"
+    ]);
+
+    function rushIsAdminV2() {
+        const stateRole = String(state?.auth?.user?.role || "").trim().toUpperCase();
+        const domRole = String(document.getElementById("userRole")?.textContent || "").trim().toUpperCase();
+
+        return stateRole === "ADMIN" || domRole === "ADMIN";
+    }
+
+    function rushSetVoiceStatusV2(message) {
+        const status = document.getElementById("voiceStatus");
+        if (status) {
+            status.textContent = message;
+        }
+    }
+
+    function rushSafeTextV2(key, fallback) {
+        try {
+            return typeof t === "function" ? t(key) : fallback;
+        } catch {
+            return fallback;
+        }
+    }
+
+    function rushForceUserMenuV2() {
+        const admin = rushIsAdminV2();
+
+        document.body.classList.toggle("admin-menu", admin);
+        document.body.classList.toggle("user-menu", !admin);
+
+        document.querySelectorAll("#sidebarNav .nav-item").forEach(item => {
+            const section = item.dataset.section || "";
+
+            if (!item.dataset.originalIndex) {
+                item.dataset.originalIndex = item.dataset.index || "";
+            }
+
+            const visible = admin || USER_ALLOWED_SECTIONS_V2.has(section);
+
+            item.hidden = !visible;
+            item.classList.toggle("user-menu-hidden", !visible);
+
+            if (visible) {
+                item.style.removeProperty("display");
+            } else {
+                item.style.setProperty("display", "none", "important");
+            }
+        });
+
+        document.querySelectorAll(".admin-only").forEach(element => {
+            element.hidden = !admin;
+
+            if (admin) {
+                element.style.removeProperty("display");
+            } else {
+                element.style.setProperty("display", "none", "important");
+            }
+        });
+
+        document.querySelectorAll("[data-section-link]").forEach(button => {
+            const target = button.dataset.sectionLink || "";
+            const visible = admin || USER_ALLOWED_SECTIONS_V2.has(target);
+
+            button.hidden = !visible;
+
+            if (visible) {
+                button.style.removeProperty("display");
+            } else {
+                button.style.setProperty("display", "none", "important");
+            }
+        });
+
+        const visibleItems = Array.from(document.querySelectorAll("#sidebarNav .nav-item"))
+            .filter(item => !item.hidden && getComputedStyle(item).display !== "none");
+
+        visibleItems.forEach((item, index) => {
+            const number = item.querySelector(".sm-panel-index");
+            if (!number) return;
+
+            if (admin) {
+                number.textContent =
+                    item.dataset.originalIndex ||
+                    item.dataset.index ||
+                    String(index + 1).padStart(2, "0");
+            } else {
+                number.textContent = String(index + 1).padStart(2, "0");
+            }
+        });
+    }
+
+    function rushShowCustomerChatV2() {
+        state.currentSection = "customer-chat";
+
+        document.querySelectorAll(".section").forEach(section => {
+            section.classList.toggle("active", section.id === "customer-chat");
+        });
+
+        const guard = document.getElementById("adminOnlyGuardSection");
+        if (guard) {
+            guard.classList.remove("active");
+            guard.remove();
+        }
+
+        document.querySelectorAll(".nav-item").forEach(item => {
+            item.classList.toggle("active", item.dataset.section === "customer-chat");
+        });
+
+        const pageTitle = document.getElementById("pageTitle");
+        if (pageTitle) {
+            pageTitle.textContent = rushSafeTextV2("customerChat", "Customer Chat");
+        }
+
+        try {
+            if (typeof setCurvedSubtitle === "function") {
+                setCurvedSubtitle(rushSafeTextV2(
+                    "customerChatSubtitle",
+                    "Chat with Real AI, or switch to FAQ mode for database-only support answers."
+                ));
+            }
+        } catch {
+            // Ignore subtitle failures.
+        }
+
+        rushForceUserMenuV2();
+    }
+
+    const originalShowSectionV2 = typeof showSection === "function" ? showSection : null;
+
+    showSection = function rushPatchedShowSectionV2(sectionName) {
+        const admin = rushIsAdminV2();
+
+        if (!admin && ADMIN_ONLY_SECTIONS_V2.has(sectionName)) {
+            rushShowCustomerChatV2();
+            return;
+        }
+
+        const result = originalShowSectionV2
+            ? originalShowSectionV2(sectionName)
+            : undefined;
+
+        rushForceUserMenuV2();
+
+        return result;
+    };
+
+    renderAdminOnlySection = function rushPatchedRenderAdminOnlySectionV2(sectionName) {
+        if (!rushIsAdminV2()) {
+            rushShowCustomerChatV2();
+            return;
+        }
+
+        const message = rushSafeTextV2("adminOnlyPage", "This page is available for admins only.");
+        const sectionContainers = {
+            dashboard: ["dashboardStats"],
+            "ai-learning": ["pendingGeneratedFaqList", "generatedFaqList"],
+            "chat-history": ["chatHistoryList"],
+            unanswered: ["unansweredList"],
+            "security-center": ["securityStats", "honeypotEventsList", "blockedIpsList", "auditLogsList"]
+        };
+
+        (sectionContainers[sectionName] || []).forEach(containerId => {
+            if (document.getElementById(containerId) && typeof renderError === "function") {
+                renderError(containerId, message);
+            }
+        });
+    };
+
+    function rushStopAgentSpeechV2() {
+        try {
+            if (state.voice?.activeAudio) {
+                state.voice.activeAudio.pause();
+                state.voice.activeAudio.currentTime = 0;
+                state.voice.activeAudio = null;
+            }
+        } catch {
+            // Ignore audio stop errors.
+        }
+
+        try {
+            if ("speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+            }
+        } catch {
+            // Ignore speech stop errors.
+        }
+    }
+
+    function rushSpeakAnswerV2(answer, language) {
+        if (!answer || !("speechSynthesis" in window)) {
+            return;
+        }
+
+        rushStopAgentSpeechV2();
+
+        const utterance = new SpeechSynthesisUtterance(answer);
+        utterance.lang = language === "AR" ? "ar-SA" : "en-US";
+        utterance.rate = 1;
+        utterance.pitch = 1;
+
+        utterance.onstart = () => {
+            rushSetVoiceStatusV2(language === "AR" ? "الوكيل يتحدث الآن..." : "Agent is speaking...");
+        };
+
+        utterance.onend = () => {
+            rushSetVoiceStatusV2(rushSafeTextV2("voiceIdle", "Voice input ready."));
+        };
+
+        utterance.onerror = () => {
+            rushSetVoiceStatusV2(language === "AR" ? "تعذر تشغيل الصوت." : "Unable to play voice reply.");
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function rushBuildAudioSrcV2(response) {
+        if (!response) return "";
+
+        if (response.audioUrl || response.voiceUrl) {
+            return response.audioUrl || response.voiceUrl;
+        }
+
+        const base64 =
+            response.audioBase64 ||
+            response.audio ||
+            response.ttsAudioBase64 ||
+            response.voiceBase64;
+
+        if (!base64) {
+            return "";
+        }
+
+        const contentType =
+            response.audioContentType ||
+            response.audioMimeType ||
+            response.mimeType ||
+            "audio/mpeg";
+
+        return `data:${contentType};base64,${base64}`;
+    }
+
+    async function rushPlayAudioV2(audio, fallbackAnswer, language) {
+        if (!audio) {
+            rushSpeakAnswerV2(fallbackAnswer, language);
+            return;
+        }
+
+        try {
+            rushStopAgentSpeechV2();
+
+            state.voice.activeAudio = audio;
+
+            audio.addEventListener("ended", () => {
+                if (state.voice.activeAudio === audio) {
+                    state.voice.activeAudio = null;
+                }
+
+                rushSetVoiceStatusV2(rushSafeTextV2("voiceIdle", "Voice input ready."));
+            }, { once: true });
+
+            rushSetVoiceStatusV2(language === "AR" ? "الوكيل يتحدث الآن..." : "Agent is speaking...");
+            await audio.play();
+        } catch {
+            rushSpeakAnswerV2(fallbackAnswer, language);
+        }
+    }
+
+    appendVoiceBubble = function rushPatchedAppendVoiceBubbleV2(audioUrl) {
+        const id = `voice-${Date.now()}`;
+
+        const bubble = document.createElement("div");
+        bubble.id = id;
+        bubble.className = "bubble user voice-message";
+
+        bubble.innerHTML = `
+            <div class="voice-message-head">
+                <span class="voice-dot" aria-hidden="true"></span>
+                <strong>Voice message</strong>
+            </div>
+            <audio controls src="${audioUrl}"></audio>
+            <p class="voice-transcript">Voice message sent.</p>
+        `;
+
+        document.getElementById("chatMessages").appendChild(bubble);
+
+        if (typeof scrollChat === "function") {
+            scrollChat();
+        }
+
+        return id;
+    };
+
+    updateVoiceBubbleTranscript = function rushPatchedUpdateVoiceBubbleTranscriptV2(id) {
+        const bubble = document.getElementById(id);
+        const transcriptElement = bubble?.querySelector(".voice-transcript");
+
+        if (transcriptElement) {
+            transcriptElement.textContent = "Voice message sent.";
+        }
+    };
+
+    appendBotResponse = function rushPatchedAppendBotResponseV2(response = {}, fallbackMode, fallbackLanguage) {
+        const answer =
+            response.answer ||
+            response.aiResponse ||
+            response.response ||
+            response.message ||
+            rushSafeTextV2("apiWaiting", "This feature is waiting for backend data.");
+
+        const answered = Boolean(response.answered);
+        const language = response.language || fallbackLanguage || state.language || "EN";
+        const supportUrl = response.whatsappSupportUrl || response.supportUrl || (!answered ? WHATSAPP_URL : "");
+        const audioSrc = rushBuildAudioSrcV2(response);
+
+        state.lastChatHistoryId = response.chatHistoryId || response.historyId || state.lastChatHistoryId;
+
+        const bubble = document.createElement("div");
+        bubble.className = "bubble bot";
+
+        bubble.innerHTML = `
+            <p>${escapeHtml(answer)}</p>
+
+            ${audioSrc ? `
+                <div class="bot-audio-head">
+                    <span class="voice-dot" aria-hidden="true"></span>
+                    <strong>Agent voice reply</strong>
+                </div>
+                <audio class="bot-audio-reply" controls src="${escapeHtml(audioSrc)}"></audio>
+            ` : ""}
+
+            ${response.generatedFaqSaved ? `<div class="learning-note">${escapeHtml(response.learningMessage || rushSafeTextV2("aiLearningSaved", "Saved as FAQ."))}</div>` : ""}
+
+            ${typeof renderSuggestedQuestions === "function" ? renderSuggestedQuestions(response.suggestedQuestions) : ""}
+
+            <div class="item-actions">
+                <span>${rushSafeTextV2("answerHelpful", "Was this answer helpful?")}</span>
+                <button class="button button-secondary button-small" type="button" onclick="sendFeedback(true)">${rushSafeTextV2("yes", "Yes")}</button>
+                <button class="button button-secondary button-small" type="button" onclick="sendFeedback(false)">${rushSafeTextV2("no", "No")}</button>
+                ${supportUrl && !answered ? `<button class="button button-small" type="button" onclick="openWhatsAppSupport(decodeURIComponent('${encodeForHandler(supportUrl)}'))">${rushSafeTextV2("contactHumanSupport", "Contact Human Support")}</button>` : ""}
+            </div>
+        `;
+
+        document.getElementById("chatMessages").appendChild(bubble);
+
+        if (typeof scrollChat === "function") {
+            scrollChat();
+        }
+
+        const audio = bubble.querySelector(".bot-audio-reply");
+
+        if (response.forceVoiceReply || response.autoPlayAudio || state.voice?.inputFromVoice) {
+            rushPlayAudioV2(audio, answer, language);
+        }
+    };
+
+    async function rushRunAdminLoadsOnlyV2() {
+        if (!rushIsAdminV2()) {
+            return;
+        }
+
+        await Promise.allSettled([
+            typeof loadChatHistory === "function" ? loadChatHistory() : Promise.resolve(),
+            typeof loadUnansweredQuestions === "function" ? loadUnansweredQuestions() : Promise.resolve(),
+            typeof loadDashboardStats === "function" ? loadDashboardStats() : Promise.resolve()
+        ]);
+    }
+
+    askQuestion = async function rushPatchedAskQuestionV2(event) {
+        if (event) {
+            event.preventDefault();
+        }
+
+        if (state.voice?.listening) {
+            if (typeof stopVoiceRecording === "function") {
+                stopVoiceRecording();
+            }
+
+            return;
+        }
+
+        rushShowCustomerChatV2();
+
+        const chatInput = document.getElementById("chatInput");
+        const question = chatInput.value.trim();
+
+        if (!question) {
+            return;
+        }
+
+        const mode = document.getElementById("agentModeSelect").value;
+        const language = document.getElementById("chatLanguageSelect").value;
+        const endpoint = mode === "REAL_AI" ? api.aiAsk : api.chatAsk;
+        const inputType = state.voice.inputFromVoice ? "VOICE" : "TEXT";
+        const payload = {
+            question,
+            language,
+            mode,
+            sessionId: getSessionId(),
+            inputType
+        };
+
+        appendChatBubble("user", question);
+
+        chatInput.value = "";
+        state.voice.inputFromVoice = false;
+
+        rushSetVoiceStatusV2(rushSafeTextV2("voiceIdle", "Voice input ready."));
+
+        const loadingId = appendChatLoading();
+
+        try {
+            const response = await apiRequest(endpoint, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+
+            removeElement(loadingId);
+
+            appendBotResponse({
+                ...(response || {}),
+                forceVoiceReply: inputType === "VOICE"
+            }, mode, language);
+
+            updateTokenUsageFromResponse(response || {});
+
+            if (typeof loadTokenUsage === "function") {
+                await loadTokenUsage(true);
+            }
+
+            await rushRunAdminLoadsOnlyV2();
+            rushShowCustomerChatV2();
+        } catch (error) {
+            console.error(error);
+
+            removeElement(loadingId);
+
+            const message = error.message || rushSafeTextV2("unableToComplete", "Unable to complete the request.");
+
+            appendBotResponse({
+                answer: message,
+                answered: false,
+                forceVoiceReply: inputType === "VOICE"
+            }, mode, language);
+
+            showToast(message, "error");
+            rushShowCustomerChatV2();
+        }
+    };
+
+    const originalStartVoiceRecordingV2 = typeof startVoiceRecording === "function" ? startVoiceRecording : null;
+    const originalStopVoiceRecordingV2 = typeof stopVoiceRecording === "function" ? stopVoiceRecording : null;
+
+    startVoiceRecording = async function rushPatchedStartVoiceRecordingV2() {
+        rushStopAgentSpeechV2();
+
+        const sendButton = document.getElementById("sendQuestionBtn");
+        if (sendButton) {
+            sendButton.disabled = true;
+        }
+
+        const chatInput = document.getElementById("chatInput");
+        if (chatInput) {
+            chatInput.value = "";
+        }
+
+        if (originalStartVoiceRecordingV2) {
+            await originalStartVoiceRecordingV2();
+        }
+    };
+
+    stopVoiceRecording = function rushPatchedStopVoiceRecordingV2() {
+        if (originalStopVoiceRecordingV2) {
+            originalStopVoiceRecordingV2();
+        }
+    };
+
+    resetVoiceButton = function rushPatchedResetVoiceButtonV2() {
+        const button = document.getElementById("voiceInputBtn");
+        const sendButton = document.getElementById("sendQuestionBtn");
+
+        if (button) {
+            button.disabled = false;
+            button.classList.remove("listening");
+            button.textContent = rushSafeTextV2("voiceInput", "Record");
+        }
+
+        if (sendButton) {
+            sendButton.disabled = false;
+        }
+    };
+
+    async function rushAskWithVoiceTranscriptFallbackV2(transcript, mode, language) {
+        const endpoint = mode === "REAL_AI" ? api.aiAsk : api.chatAsk;
+
+        const response = await apiRequest(endpoint, {
+            method: "POST",
+            body: JSON.stringify({
+                question: transcript,
+                language,
+                mode,
+                sessionId: getSessionId(),
+                inputType: "VOICE"
+            })
+        });
+
+        return response || {};
+    }
+
+    finishVoiceRecording = async function rushPatchedFinishVoiceRecordingV2() {
+        const mimeType = state.voice.recorder?.mimeType || state.voice.chunks[0]?.type || "audio/webm";
+        const audioBlob = new Blob(state.voice.chunks, { type: mimeType });
+        const transcript = String(state.voice.transcript || document.getElementById("chatInput")?.value || "").trim();
+
+        if (typeof cleanupVoiceStream === "function") {
+            cleanupVoiceStream();
+        }
+
+        const chatInput = document.getElementById("chatInput");
+        if (chatInput) {
+            chatInput.value = "";
+        }
+
+        if (!audioBlob.size) {
+            rushSetVoiceStatusV2(rushSafeTextV2("voiceNoSpeech", "Could not process that voice message. Try again."));
+            resetVoiceButton();
+            return;
+        }
+
+        rushShowCustomerChatV2();
+
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const userVoiceBubble = appendVoiceBubble(audioUrl);
+        const loadingId = appendChatLoading();
+
+        const mode = document.getElementById("agentModeSelect").value;
+        const language = document.getElementById("chatLanguageSelect").value;
+
+        try {
+            let response;
+
+            try {
+                response = await sendVoiceQuestion(audioBlob, { mode, language });
+            } catch (voiceError) {
+                console.warn("Voice endpoint failed, trying browser transcript fallback:", voiceError);
+
+                if (!transcript) {
+                    throw voiceError;
+                }
+
+                response = await rushAskWithVoiceTranscriptFallbackV2(transcript, mode, language);
+            }
+
+            removeElement(loadingId);
+            updateVoiceBubbleTranscript(userVoiceBubble);
+
+            appendBotResponse({
+                ...(response || {}),
+                answer: response?.answer || response?.aiResponse || response?.response,
+                audioBase64: response?.audioBase64 || response?.audio || response?.ttsAudioBase64,
+                audioUrl: response?.audioUrl || response?.voiceUrl,
+                audioContentType: response?.audioContentType || response?.audioMimeType || response?.mimeType || "audio/mpeg",
+                forceVoiceReply: true,
+                autoPlayAudio: true
+            }, mode, language);
+
+            if (typeof loadTokenUsage === "function") {
+                await loadTokenUsage(true);
+            }
+
+            await rushRunAdminLoadsOnlyV2();
+
+            rushSetVoiceStatusV2(rushSafeTextV2("voiceCaptured", "Voice message sent. The agent is listening."));
+            rushShowCustomerChatV2();
+        } catch (error) {
+            console.error(error);
+
+            removeElement(loadingId);
+
+            const message = error.message || rushSafeTextV2("unableToComplete", "Unable to complete the request.");
+
+            appendBotResponse({
+                answer: message,
+                answered: false,
+                forceVoiceReply: true,
+                autoPlayAudio: true
+            }, mode, language);
+
+            showToast(message, "error");
+            rushSetVoiceStatusV2(rushSafeTextV2("voiceNoSpeech", "Could not process that voice message. Try again."));
+            rushShowCustomerChatV2();
+        } finally {
+            resetVoiceButton();
+
+            if (chatInput) {
+                chatInput.value = "";
+            }
+
+            state.voice.inputFromVoice = false;
+        }
+    };
+
+    prefillTicket = function rushPatchedPrefillTicketV2(message = "") {
+        if (!rushIsAdminV2()) {
+            openWhatsAppSupport(WHATSAPP_URL);
+            return;
+        }
+
+        showSection("tickets");
+        setValue("ticketSubject", rushSafeTextV2("contactHumanSupport", "Contact Human Support"));
+        setValue("ticketMessage", message || value("chatInput"));
+    };
+
+    function rushInstallCaptureGuardsV2() {
+        document.addEventListener("submit", event => {
+            if (event.target?.id === "chatForm") {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                askQuestion(event);
+            }
+        }, true);
+
+        document.addEventListener("click", event => {
+            const voiceButton = event.target?.closest?.("#voiceInputBtn");
+
+            if (voiceButton) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                if (typeof toggleVoiceInput === "function") {
+                    toggleVoiceInput();
+                }
+            }
+        }, true);
+    }
+
+    function rushRunV2() {
+        rushForceUserMenuV2();
+
+        const pageTitle = String(document.getElementById("pageTitle")?.textContent || "").trim();
+
+        if (!rushIsAdminV2() && pageTitle.toLowerCase().includes("admins only")) {
+            rushShowCustomerChatV2();
+        }
+
+        setTimeout(rushForceUserMenuV2, 200);
+        setTimeout(rushForceUserMenuV2, 800);
+        setTimeout(rushForceUserMenuV2, 1500);
+    }
+
+    rushInstallCaptureGuardsV2();
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", rushRunV2);
+    } else {
+        rushRunV2();
+    }
+
+    window.addEventListener("load", rushRunV2);
+
+    const roleElement = document.getElementById("userRole");
+    if (roleElement) {
+        new MutationObserver(rushRunV2).observe(roleElement, {
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+    }
 })();
