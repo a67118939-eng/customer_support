@@ -836,6 +836,42 @@ textarea:focus {
     font-size: 13px;
 }
 
+.voice-button.listening {
+    color: var(--cyan-soft);
+    border-color: rgba(126, 238, 255, 0.55);
+    box-shadow: 0 0 24px rgba(24, 216, 255, 0.18);
+}
+
+.voice-message-head,
+.bot-audio-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 8px;
+    color: var(--cyan-soft);
+}
+
+.voice-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--cyan);
+    box-shadow: 0 0 16px rgba(24, 216, 255, 0.75);
+    animation: pulse 1s infinite ease-in-out;
+}
+
+.voice-message audio,
+.bot-audio-reply {
+    width: 100%;
+    margin-top: 6px;
+}
+
+.voice-transcript {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
 .item-list {
     display: grid;
     gap: 12px;

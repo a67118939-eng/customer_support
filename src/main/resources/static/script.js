@@ -2552,4 +2552,720 @@ function initRushPageScene() {
 
     window.addEventListener("pointermove", updateTarget, { passive: true });
     window.addEventListener("pointerleave", resetTarget);
+}/* ============================================================
+   RUSH AI SUPPORT FINAL HOTFIX
+   Paste this at the VERY END of src/main/resources/static/script.js
+
+   Fixes:
+   1. ADMIN sees all 12 pages.
+   2. USER sees only:
+      01 Customer Chat
+      02 FAQ Database Agent
+      03 Real AI Agent
+      04 Feedback
+   3. Security Center stays page 12 for ADMIN only.
+   4. USER cannot open admin pages directly.
+   5. USER quick-action buttons to admin pages are hidden.
+   6. Voice messages auto-play agent voice if backend returns audio.
+   7. If backend does not return audio yet, browser speech speaks the answer.
+   ============================================================ */
+
+const RUSH_USER_ALLOWED_SECTIONS = new Set([
+    "customer-chat",
+    "faq-agent",
+    "real-ai",
+    "feedback"
+]);
+
+const RUSH_ADMIN_ONLY_SECTIONS = new Set([
+    "faq-management",
+    "ai-learning",
+    "categories",
+    "dashboard",
+    "chat-history",
+    "unanswered",
+    "tickets",
+    "security-center"
+]);
+
+const RUSH_ADMIN_ONLY_CONTAINERS = new Set([
+    "faqList",
+    "pendingGeneratedFaqList",
+    "generatedFaqList",
+    "categoryList",
+    "dashboardStats",
+    "chatHistoryList",
+    "unansweredList",
+    "ticketsList",
+    "securityStats",
+    "honeypotEventsList",
+    "blockedIpsList",
+    "auditLogsList"
+]);
+
+(function rushFinalHotfixSetup() {
+    addRushVoiceTranslations();
+    injectRushVoiceStyles();
+
+    if (state && state.voice && !("activeAudio" in state.voice)) {
+        state.voice.activeAudio = null;
+    }
+})();
+
+function addRushVoiceTranslations() {
+    if (translations.EN) {
+        translations.EN.voiceAssistantSpeaking = "Agent is speaking...";
+        translations.EN.voiceTapToPlay = "Tap play to hear the agent reply.";
+        translations.EN.voiceNoAudioReply = "No voice audio was returned. Using browser voice instead.";
+        translations.EN.userFeedbackInfoTitle = "Feedback";
+        translations.EN.userFeedbackInfoMessage = "After the AI answers you, use the Yes or No buttons under the answer to send feedback.";
+        translations.EN.adminOnlyPage = "This page is available for admins only.";
+    }
+
+    if (translations.AR) {
+        translations.AR.voiceAssistantSpeaking = "الوكيل يتحدث الآن...";
+        translations.AR.voiceTapToPlay = "اضغط تشغيل لسماع رد الوكيل.";
+        translations.AR.voiceNoAudioReply = "لم يتم إرجاع ملف صوتي. سيتم استخدام صوت المتصفح بدلاً من ذلك.";
+        translations.AR.userFeedbackInfoTitle = "التقييم";
+        translations.AR.userFeedbackInfoMessage = "بعد أن يجيب الذكاء الاصطناعي، استخدم أزرار نعم أو لا أسفل الإجابة لإرسال تقييمك.";
+        translations.AR.adminOnlyPage = "هذه الصفحة متاحة للمسؤولين فقط.";
+    }
+}
+
+function injectRushVoiceStyles() {
+    if (document.getElementById("rushFinalVoiceStyles")) return;
+
+    const style = document.createElement("style");
+    style.id = "rushFinalVoiceStyles";
+    style.textContent = `
+        .bot-audio-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 12px 0 8px;
+            color: var(--cyan-soft, #7eeeff);
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .voice-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--cyan, #18d8ff);
+            box-shadow: 0 0 18px rgba(24, 216, 255, 0.8);
+            animation: rushVoicePulse 1.1s ease-in-out infinite;
+        }
+
+        .bot-audio-reply,
+        .voice-bubble-audio {
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .voice-button.listening {
+            border-color: rgba(255, 194, 208, 0.8);
+            color: #fff;
+            background: linear-gradient(135deg, rgba(255, 80, 120, 0.35), rgba(82, 39, 255, 0.35));
+            box-shadow: 0 0 24px rgba(255, 80, 120, 0.3);
+        }
+
+        .user-feedback-info {
+            border: 1px solid rgba(148, 211, 255, 0.24);
+            border-radius: 18px;
+            padding: 18px;
+            background: rgba(255, 255, 255, 0.055);
+        }
+
+        @keyframes rushVoicePulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 0.7;
+            }
+            50% {
+                transform: scale(1.35);
+                opacity: 1;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+/* =========================
+   APP INIT OVERRIDE
+   ========================= */
+
+async function initApp() {
+    if (!REDUCED_DECORATIVE_MOTION) {
+        initClickSpark();
+    }
+
+    await loadCurrentUser();
+
+    initRushPageScene();
+    bindEvents();
+    initVoiceInput();
+    setMenuOpen(false);
+    initBorderGlow();
+    loadLanguage();
+    seedChatWelcome();
+    loadTokenUsage();
+    showSection("customer-chat");
+
+    const startupLoads = [
+        loadFaqs()
+    ];
+
+    if (isAdmin()) {
+        startupLoads.push(
+            loadCategories(),
+            loadDashboardStats(),
+            loadAiLearningCenter(),
+            loadChatHistory(),
+            loadUnansweredQuestions(),
+            loadTickets(),
+            loadFeedback(),
+            loadSecurityCenter()
+        );
+    }
+
+    Promise.allSettled(startupLoads);
+}
+
+/* =========================
+   ROLE MENU FIX
+   ========================= */
+
+function applyRoleAccess() {
+    const admin = isAdmin();
+
+    document.body.classList.toggle("admin-menu", admin);
+    document.body.classList.toggle("user-menu", !admin);
+
+    document.querySelectorAll(".admin-only").forEach(element => {
+        element.hidden = !admin;
+        element.style.display = admin ? "" : "none";
+    });
+
+    const navItems = Array.from(document.querySelectorAll("#sidebarNav .nav-item"));
+
+    navItems.forEach(item => {
+        if (!item.dataset.originalIndex) {
+            item.dataset.originalIndex = item.dataset.index || "";
+        }
+
+        const section = item.dataset.section || "";
+        const allowedForUser = RUSH_USER_ALLOWED_SECTIONS.has(section);
+        const hideForUser = !admin && !allowedForUser;
+
+        item.hidden = hideForUser;
+        item.classList.toggle("user-menu-hidden", hideForUser);
+        item.style.display = hideForUser ? "none" : "";
+    });
+
+    renumberVisibleSidebarItems();
+
+    document.querySelectorAll("[data-section-link]").forEach(button => {
+        const target = button.dataset.sectionLink || "";
+        const targetIsAdminOnly = RUSH_ADMIN_ONLY_SECTIONS.has(target);
+
+        if (!admin && targetIsAdminOnly) {
+            button.hidden = true;
+            button.style.display = "none";
+        } else {
+            button.hidden = false;
+            button.style.display = "";
+        }
+    });
+
+    const currentSection = state.currentSection || "customer-chat";
+
+    if (!admin && RUSH_ADMIN_ONLY_SECTIONS.has(currentSection)) {
+        showSection("customer-chat");
+    }
+}
+
+function renumberVisibleSidebarItems() {
+    const admin = isAdmin();
+    const visibleItems = Array.from(document.querySelectorAll("#sidebarNav .nav-item"))
+        .filter(item => item.style.display !== "none" && !item.hidden);
+
+    visibleItems.forEach((item, index) => {
+        const indexElement = item.querySelector(".sm-panel-index");
+        if (!indexElement) return;
+
+        if (admin) {
+            indexElement.textContent = item.dataset.originalIndex || item.dataset.index || String(index + 1).padStart(2, "0");
+        } else {
+            indexElement.textContent = String(index + 1).padStart(2, "0");
+        }
+    });
+}
+
+/* =========================
+   SECTION ACCESS FIX
+   ========================= */
+
+function showSection(sectionName) {
+    const admin = isAdmin();
+
+    if (!admin && RUSH_ADMIN_ONLY_SECTIONS.has(sectionName)) {
+        showAdminOnlyGuard(sectionName);
+        return;
+    }
+
+    state.currentSection = sectionName;
+
+    document.querySelectorAll(".section").forEach(section => {
+        section.classList.toggle("active", section.id === sectionName);
+    });
+
+    document.querySelectorAll(".nav-item").forEach(item => {
+        item.classList.toggle("active", item.dataset.section === sectionName);
+    });
+
+    const section = byId(sectionName);
+    if (section) {
+        byId("pageTitle").textContent = t(section.dataset.titleKey || "customerChat");
+        setCurvedSubtitle(t(section.dataset.subtitleKey || "customerChatSubtitle"));
+    }
+
+    if (sectionName === "dashboard") loadDashboardStats();
+    if (sectionName === "faq-management") loadFaqs();
+    if (sectionName === "ai-learning") loadAiLearningCenter();
+    if (sectionName === "chat-history") loadChatHistory();
+    if (sectionName === "unanswered") loadUnansweredQuestions();
+    if (sectionName === "categories") loadCategories();
+    if (sectionName === "tickets") loadTickets();
+
+    if (sectionName === "feedback") {
+        if (admin) {
+            loadFeedback();
+        } else {
+            renderUserFeedbackInfo();
+        }
+    }
+}
+
+function showAdminOnlyGuard(sectionName) {
+    state.currentSection = "admin-only-guard";
+
+    document.querySelectorAll(".section").forEach(section => {
+        section.classList.remove("active");
+    });
+
+    document.querySelectorAll(".nav-item").forEach(item => {
+        item.classList.toggle("active", item.dataset.section === sectionName);
+    });
+
+    let guard = byId("adminOnlyGuardSection");
+
+    if (!guard) {
+        guard = document.createElement("section");
+        guard.id = "adminOnlyGuardSection";
+        guard.className = "section";
+        document.querySelector(".content").appendChild(guard);
+    }
+
+    guard.classList.add("active");
+    guard.innerHTML = `
+        <article class="card error-state">
+            <div>
+                <h2>${escapeHtml(t("adminOnlyPage"))}</h2>
+                <p>${escapeHtml(t("adminOnlyPage"))}</p>
+            </div>
+        </article>
+    `;
+
+    byId("pageTitle").textContent = t("adminOnlyPage");
+    setCurvedSubtitle(t("adminOnlyPage"));
+}
+
+function renderAdminOnlySection(sectionName) {
+    showAdminOnlyGuard(sectionName);
+}
+
+function renderUserFeedbackInfo() {
+    const summary = byId("feedbackSummary");
+    const list = byId("feedbackList");
+
+    if (summary) {
+        summary.innerHTML = `
+            <article class="user-feedback-info">
+                <h3>${escapeHtml(t("userFeedbackInfoTitle"))}</h3>
+                <p>${escapeHtml(t("userFeedbackInfoMessage"))}</p>
+            </article>
+        `;
+    }
+
+    if (list) {
+        list.innerHTML = "";
+    }
+}
+
+function renderLoading(containerId) {
+    if (!isAdmin() && RUSH_ADMIN_ONLY_CONTAINERS.has(containerId)) {
+        renderError(containerId, t("adminOnlyPage"));
+        return;
+    }
+
+    byId(containerId).innerHTML = `
+        <div class="loading-state">
+            <div>
+                <div class="spinner"></div>
+                <p>${t("loading")}...</p>
+            </div>
+        </div>
+    `;
+}
+
+function renderEmpty(containerId, title, message = "") {
+    const finalTitle = !isAdmin() && RUSH_ADMIN_ONLY_CONTAINERS.has(containerId)
+        ? t("adminOnlyPage")
+        : title;
+
+    const finalMessage = !isAdmin() && RUSH_ADMIN_ONLY_CONTAINERS.has(containerId)
+        ? ""
+        : message;
+
+    byId(containerId).innerHTML = `
+        <div class="empty-state">
+            <div>
+                <h3>${escapeHtml(finalTitle)}</h3>
+                ${finalMessage ? `<p>${escapeHtml(finalMessage)}</p>` : ""}
+            </div>
+        </div>
+    `;
+}
+
+function renderError(containerId, message) {
+    const finalMessage = !isAdmin() && RUSH_ADMIN_ONLY_CONTAINERS.has(containerId)
+        ? t("adminOnlyPage")
+        : message;
+
+    byId(containerId).innerHTML = `
+        <div class="error-state">
+            <div>
+                <h3>${escapeHtml(finalMessage)}</h3>
+            </div>
+        </div>
+    `;
+}
+
+/* =========================
+   VOICE RECORDING FIX
+   ========================= */
+
+async function startVoiceRecording() {
+    try {
+        stopAgentSpeech();
+
+        state.voice.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        const options = preferredAudioOptions();
+
+        state.voice.recorder = options
+            ? new MediaRecorder(state.voice.stream, { mimeType: options })
+            : new MediaRecorder(state.voice.stream);
+
+        state.voice.chunks = [];
+        state.voice.transcript = "";
+
+        state.voice.recorder.addEventListener("dataavailable", event => {
+            if (event.data && event.data.size > 0) {
+                state.voice.chunks.push(event.data);
+            }
+        });
+
+        state.voice.recorder.addEventListener("stop", finishVoiceRecording, { once: true });
+        state.voice.recorder.start();
+
+        updateVoiceLanguage();
+
+        if (state.voice.recognition) {
+            try {
+                state.voice.recognition.start();
+            } catch {
+                // Browser recognition may already be active.
+            }
+        }
+
+        state.voice.listening = true;
+
+        const button = byId("voiceInputBtn");
+        if (button) {
+            button.classList.add("listening");
+            button.textContent = t("voiceListening");
+        }
+
+        setVoiceStatus(t("voiceListening"));
+    } catch (error) {
+        console.error(error);
+        setVoiceStatus(error?.name === "NotAllowedError" ? t("voicePermissionDenied") : t("voiceUnsupported"));
+        cleanupVoiceStream();
+    }
+}
+
+function stopVoiceRecording() {
+    if (!state.voice.recorder || state.voice.recorder.state === "inactive") return;
+
+    setVoiceStatus(t("voiceProcessing"));
+
+    const button = byId("voiceInputBtn");
+    if (button) {
+        button.disabled = true;
+    }
+
+    try {
+        state.voice.recorder.stop();
+    } catch (error) {
+        console.error(error);
+        resetVoiceButton();
+    }
+
+    if (state.voice.recognition) {
+        try {
+            state.voice.recognition.stop();
+        } catch {
+            // Recognition may already be stopped.
+        }
+    }
+}
+
+async function finishVoiceRecording() {
+    const mimeType = state.voice.recorder?.mimeType || state.voice.chunks[0]?.type || "audio/webm";
+    const audioBlob = new Blob(state.voice.chunks, { type: mimeType });
+    const transcript = (byId("chatInput").value || state.voice.transcript || "").trim();
+
+    cleanupVoiceStream();
+
+    if (!audioBlob.size) {
+        setVoiceStatus(t("voiceNoSpeech"));
+        resetVoiceButton();
+        return;
+    }
+
+    byId("chatInput").value = "";
+
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const userVoiceBubble = appendVoiceBubble(audioUrl, transcript);
+    const loadingId = appendChatLoading();
+
+    try {
+        const mode = byId("agentModeSelect").value;
+        const language = byId("chatLanguageSelect").value;
+
+        const response = await sendVoiceQuestion(audioBlob, { mode, language });
+
+        removeElement(loadingId);
+        updateVoiceBubbleTranscript(userVoiceBubble, response.transcript || transcript);
+
+        appendBotResponse({
+            answer: response.answer || response.aiResponse || response.response,
+            answered: response.answered,
+            confidenceScore: response.confidenceScore,
+            mode,
+            language,
+            sessionId: response.sessionId,
+            chatHistoryId: response.chatHistoryId || response.historyId,
+
+            audioBase64: response.audioBase64 || response.audio || response.ttsAudioBase64,
+            audioUrl: response.audioUrl || response.voiceUrl,
+            audioContentType: response.audioContentType || response.audioMimeType || response.mimeType || "audio/mpeg",
+
+            autoPlayAudio: true
+        }, mode, language);
+
+        await Promise.allSettled([
+            loadTokenUsage(true),
+            isAdmin() ? loadChatHistory() : Promise.resolve(),
+            isAdmin() ? loadUnansweredQuestions() : Promise.resolve(),
+            isAdmin() ? loadDashboardStats() : Promise.resolve()
+        ]);
+    } catch (error) {
+        console.error(error);
+        removeElement(loadingId);
+        appendChatBubble("bot", error.message || t("unableToComplete"));
+        showToast(error.message || t("unableToComplete"), "error");
+        setVoiceStatus(t("voiceNoSpeech"));
+    } finally {
+        resetVoiceButton();
+    }
+}
+
+function cleanupVoiceStream() {
+    state.voice.stream?.getTracks().forEach(track => track.stop());
+    state.voice.stream = null;
+    state.voice.recorder = null;
+    state.voice.chunks = [];
+    state.voice.listening = false;
+}
+
+function resetVoiceButton() {
+    const button = byId("voiceInputBtn");
+    if (!button) return;
+
+    button.disabled = false;
+    button.classList.remove("listening");
+    button.textContent = t("voiceInput");
+}
+
+function stopAgentSpeech() {
+    if (state.voice?.activeAudio) {
+        try {
+            state.voice.activeAudio.pause();
+            state.voice.activeAudio.currentTime = 0;
+        } catch {
+            // Ignore audio stop errors.
+        }
+        state.voice.activeAudio = null;
+    }
+
+    if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+    }
+}
+
+/* =========================
+   BOT RESPONSE + VOICE REPLY
+   ========================= */
+
+function appendBotResponse(response, fallbackMode, fallbackLanguage) {
+    const answer = response.answer || response.aiResponse || response.response || t("apiWaiting");
+    const answered = Boolean(response.answered);
+    const mode = response.mode || fallbackMode;
+    const language = response.language || fallbackLanguage || state.language;
+    const supportUrl = response.whatsappSupportUrl || response.supportUrl || (!answered ? WHATSAPP_URL : "");
+    const audioSrc = buildBotAudioSrc(response);
+
+    state.lastChatHistoryId = response.chatHistoryId || response.historyId || state.lastChatHistoryId;
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble bot";
+
+    bubble.innerHTML = `
+        <p>${escapeHtml(answer)}</p>
+
+        ${audioSrc ? `
+            <div class="bot-audio-head">
+                <span class="voice-dot" aria-hidden="true"></span>
+                <strong>Agent voice reply</strong>
+            </div>
+            <audio class="bot-audio-reply" controls src="${escapeHtml(audioSrc)}"></audio>
+        ` : ""}
+
+        ${response.generatedFaqSaved ? `<div class="learning-note">${escapeHtml(response.learningMessage || t("aiLearningSaved"))}</div>` : ""}
+
+        ${renderSuggestedQuestions(response.suggestedQuestions)}
+
+        <div class="item-actions">
+            <span>${t("answerHelpful")}</span>
+            <button class="button button-secondary button-small" type="button" onclick="sendFeedback(true)">${t("yes")}</button>
+            <button class="button button-secondary button-small" type="button" onclick="sendFeedback(false)">${t("no")}</button>
+            ${supportUrl && !answered ? `<button class="button button-small" type="button" onclick="openWhatsAppSupport(decodeURIComponent('${encodeForHandler(supportUrl)}'))">${t("contactHumanSupport")}</button>` : ""}
+            ${isAdmin() && !answered ? `<button class="button button-secondary button-small" type="button" onclick="prefillTicket(decodeURIComponent('${encodeForHandler(answer)}'))">${t("createTicket")}</button>` : ""}
+        </div>
+    `;
+
+    byId("chatMessages").appendChild(bubble);
+    scrollChat();
+
+    if (response.autoPlayAudio) {
+        const audio = bubble.querySelector(".bot-audio-reply");
+
+        if (audio) {
+            playBotAudio(audio);
+        } else {
+            setVoiceStatus(t("voiceNoAudioReply"));
+            speakAgentAnswer(answer, language);
+        }
+    }
+}
+
+function buildBotAudioSrc(response = {}) {
+    if (response.audioUrl || response.voiceUrl) {
+        return response.audioUrl || response.voiceUrl;
+    }
+
+    const base64 = response.audioBase64 || response.audio || response.ttsAudioBase64;
+
+    if (!base64) {
+        return "";
+    }
+
+    const contentType = response.audioContentType || response.audioMimeType || response.mimeType || "audio/mpeg";
+
+    return `data:${contentType};base64,${base64}`;
+}
+
+async function playBotAudio(audio) {
+    if (!audio) return;
+
+    try {
+        stopAgentSpeech();
+
+        state.voice.activeAudio = audio;
+
+        audio.addEventListener("ended", () => {
+            if (state.voice.activeAudio === audio) {
+                state.voice.activeAudio = null;
+            }
+            setVoiceStatus(t("voiceIdle"));
+        }, { once: true });
+
+        audio.addEventListener("pause", () => {
+            if (state.voice.activeAudio === audio && audio.ended) {
+                state.voice.activeAudio = null;
+            }
+        });
+
+        setVoiceStatus(t("voiceAssistantSpeaking"));
+        await audio.play();
+    } catch (error) {
+        console.warn("Voice autoplay was blocked:", error);
+        setVoiceStatus(t("voiceTapToPlay"));
+    }
+}
+
+function speakAgentAnswer(answer, language) {
+    if (!answer || !("speechSynthesis" in window)) {
+        setVoiceStatus(t("voiceTapToPlay"));
+        return;
+    }
+
+    stopAgentSpeech();
+
+    const utterance = new SpeechSynthesisUtterance(answer);
+    utterance.lang = language === "AR" ? "ar-SA" : "en-US";
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    utterance.onstart = () => {
+        setVoiceStatus(t("voiceAssistantSpeaking"));
+    };
+
+    utterance.onend = () => {
+        setVoiceStatus(t("voiceIdle"));
+    };
+
+    utterance.onerror = () => {
+        setVoiceStatus(t("voiceTapToPlay"));
+    };
+
+    window.speechSynthesis.speak(utterance);
+}
+
+/* =========================
+   SAFER TICKET PREFILL
+   ========================= */
+
+function prefillTicket(message = "") {
+    if (!isAdmin()) {
+        openWhatsAppSupport(WHATSAPP_URL);
+        return;
+    }
+
+    showSection("tickets");
+    setValue("ticketSubject", t("contactHumanSupport"));
+    setValue("ticketMessage", message || value("chatInput"));
 }
