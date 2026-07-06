@@ -3268,4 +3268,176 @@ function prefillTicket(message = "") {
     showSection("tickets");
     setValue("ticketSubject", t("contactHumanSupport"));
     setValue("ticketMessage", message || value("chatInput"));
-}
+}/* ============================================================
+   RUSH USER MENU FORCE PATCH
+   Paste at the VERY BOTTOM of script.js
+   ============================================================ */
+
+(function rushUserMenuForcePatch() {
+    const USER_ALLOWED_SECTIONS = new Set([
+        "customer-chat",
+        "faq-agent",
+        "real-ai",
+        "feedback"
+    ]);
+
+    const ADMIN_ONLY_SECTIONS_FORCE = new Set([
+        "faq-management",
+        "ai-learning",
+        "categories",
+        "dashboard",
+        "chat-history",
+        "unanswered",
+        "tickets",
+        "security-center"
+    ]);
+
+    function rushEffectiveIsAdmin() {
+        let roleFromState = "";
+
+        try {
+            roleFromState = String(state?.auth?.user?.role || "").trim().toUpperCase();
+        } catch {
+            roleFromState = "";
+        }
+
+        const roleFromDom = String(document.getElementById("userRole")?.textContent || "")
+            .trim()
+            .toUpperCase();
+
+        return roleFromState === "ADMIN" || roleFromDom === "ADMIN";
+    }
+
+    function rushForceUserMenu() {
+        const admin = rushEffectiveIsAdmin();
+
+        document.body.classList.toggle("admin-menu", admin);
+        document.body.classList.toggle("user-menu", !admin);
+
+        document.querySelectorAll("#sidebarNav .nav-item").forEach(item => {
+            const section = item.dataset.section || "";
+            const showItem = admin || USER_ALLOWED_SECTIONS.has(section);
+
+            if (!item.dataset.originalIndex) {
+                item.dataset.originalIndex = item.dataset.index || "";
+            }
+
+            item.hidden = !showItem;
+            item.classList.toggle("user-menu-hidden", !showItem);
+
+            if (showItem) {
+                item.style.removeProperty("display");
+            } else {
+                item.style.setProperty("display", "none", "important");
+            }
+        });
+
+        document.querySelectorAll(".admin-only").forEach(element => {
+            const shouldShow = admin;
+
+            element.hidden = !shouldShow;
+
+            if (shouldShow) {
+                element.style.removeProperty("display");
+            } else {
+                element.style.setProperty("display", "none", "important");
+            }
+        });
+
+        document.querySelectorAll("[data-section-link]").forEach(button => {
+            const target = button.dataset.sectionLink || "";
+            const showButton = admin || USER_ALLOWED_SECTIONS.has(target);
+
+            button.hidden = !showButton;
+
+            if (showButton) {
+                button.style.removeProperty("display");
+            } else {
+                button.style.setProperty("display", "none", "important");
+            }
+        });
+
+        const visibleNavItems = Array.from(document.querySelectorAll("#sidebarNav .nav-item"))
+            .filter(item => !item.hidden && getComputedStyle(item).display !== "none");
+
+        visibleNavItems.forEach((item, index) => {
+            const numberElement = item.querySelector(".sm-panel-index");
+
+            if (!numberElement) {
+                return;
+            }
+
+            if (admin) {
+                numberElement.textContent =
+                    item.dataset.originalIndex ||
+                    item.dataset.index ||
+                    String(index + 1).padStart(2, "0");
+            } else {
+                numberElement.textContent = String(index + 1).padStart(2, "0");
+            }
+        });
+
+        const currentSection = state?.currentSection || "customer-chat";
+
+        if (!admin && ADMIN_ONLY_SECTIONS_FORCE.has(currentSection)) {
+            if (typeof showSection === "function") {
+                showSection("customer-chat");
+            }
+        }
+    }
+
+    const originalApplyRoleAccess = typeof applyRoleAccess === "function" ? applyRoleAccess : null;
+
+    applyRoleAccess = function patchedApplyRoleAccess() {
+        if (originalApplyRoleAccess) {
+            try {
+                originalApplyRoleAccess();
+            } catch (error) {
+                console.warn("Original applyRoleAccess failed:", error);
+            }
+        }
+
+        rushForceUserMenu();
+    };
+
+    const originalShowSection = typeof showSection === "function" ? showSection : null;
+
+    showSection = function patchedShowSection(sectionName) {
+        const admin = rushEffectiveIsAdmin();
+
+        if (!admin && ADMIN_ONLY_SECTIONS_FORCE.has(sectionName)) {
+            sectionName = "customer-chat";
+        }
+
+        const result = originalShowSection ? originalShowSection(sectionName) : undefined;
+
+        rushForceUserMenu();
+
+        return result;
+    };
+
+    function runPatchRepeatedly() {
+        rushForceUserMenu();
+        setTimeout(rushForceUserMenu, 200);
+        setTimeout(rushForceUserMenu, 800);
+        setTimeout(rushForceUserMenu, 1500);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", runPatchRepeatedly);
+    } else {
+        runPatchRepeatedly();
+    }
+
+    window.addEventListener("load", runPatchRepeatedly);
+
+    const roleElement = document.getElementById("userRole");
+
+    if (roleElement) {
+        new MutationObserver(runPatchRepeatedly).observe(roleElement, {
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+    }
+})();
