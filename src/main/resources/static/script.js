@@ -41,6 +41,8 @@ const ADMIN_ONLY_CONTAINERS = new Set([
     "auditLogsList"
 ]);
 
+const USER_MENU_INDEXES = new Set(["01", "02", "03", "11"]);
+
 const translations = {
     EN: {
         swagger: "Swagger",
@@ -712,6 +714,10 @@ function renderCurrentUser() {
 function applyRoleAccess() {
     document.querySelectorAll(".admin-only").forEach(element => {
         element.hidden = !isAdmin();
+    });
+    document.querySelectorAll("#sidebarNav .nav-item").forEach(item => {
+        const allowedForUser = USER_MENU_INDEXES.has(item.dataset.index);
+        item.hidden = !isAdmin() && !allowedForUser;
     });
     if (!isAdmin() && state.currentSection === "security-center") {
         showSection("customer-chat");
