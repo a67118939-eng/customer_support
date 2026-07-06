@@ -712,6 +712,8 @@ function renderCurrentUser() {
 }
 
 function applyRoleAccess() {
+    document.body.classList.toggle("admin-menu", isAdmin());
+    document.body.classList.toggle("user-menu", !isAdmin());
     document.querySelectorAll(".admin-only").forEach(element => {
         element.hidden = !isAdmin();
     });

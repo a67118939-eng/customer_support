@@ -328,8 +328,13 @@ body.menu-open .sidebar {
 }
 
 .nav-item.user-menu-hidden,
+.nav-item.user-restricted-menu,
 .user-menu-hidden {
     display: none !important;
+}
+
+body.admin-menu .nav-item.user-restricted-menu {
+    display: block !important;
 }
 
 .nav-item:hover,
